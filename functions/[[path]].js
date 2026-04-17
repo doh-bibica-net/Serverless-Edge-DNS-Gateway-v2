@@ -77,7 +77,7 @@ function applyConfig(cfg) {
   if (cfg.UPSTREAM_GEO_BYPASS !== undefined) UPSTREAM_GEO_BYPASS = String(cfg.UPSTREAM_GEO_BYPASS);
   if (cfg.UPSTREAM_TIMEOUT !== undefined) UPSTREAM_TIMEOUT = Number(cfg.UPSTREAM_TIMEOUT) || 5000;
   if (cfg.ALL_LISTS_REFRESH_INTERVAL !== undefined) ALL_LISTS_REFRESH_INTERVAL = Number(cfg.ALL_LISTS_REFRESH_INTERVAL) || 3600000;
-  if (cfg.AD_BLOCK_ENABLED !== undefined) AD_BLOCK_ENABLED = Boolean(cfg.AD_BLOCK_ENABLED);
+  if (cfg.AD_BLOCK_ENABLED !== undefined && cfg.AD_BLOCK_ENABLED !== AD_BLOCK_ENABLED) { AD_BLOCK_ENABLED = Boolean(cfg.AD_BLOCK_ENABLED); listConfigChanged = true; }
 
   if (cfg.BLOCKLIST_URL !== undefined && cfg.BLOCKLIST_URL !== BLOCKLIST_URL) { BLOCKLIST_URL = String(cfg.BLOCKLIST_URL); listConfigChanged = true; }
   if (cfg.ALLOWLIST_URL !== undefined && cfg.ALLOWLIST_URL !== ALLOWLIST_URL) { ALLOWLIST_URL = String(cfg.ALLOWLIST_URL); listConfigChanged = true; }
@@ -89,14 +89,14 @@ function applyConfig(cfg) {
   if (cfg.BLOCK_AAAA !== undefined) BLOCK_AAAA = Boolean(cfg.BLOCK_AAAA);
   if (cfg.BLOCK_PTR !== undefined) BLOCK_PTR = Boolean(cfg.BLOCK_PTR);
   if (cfg.BLOCK_HTTPS !== undefined) BLOCK_HTTPS = Boolean(cfg.BLOCK_HTTPS);
-  if (cfg.BLOCK_PRIVATE_TLD !== undefined) BLOCK_PRIVATE_TLD = Boolean(cfg.BLOCK_PRIVATE_TLD);
-
+  
+  if (cfg.BLOCK_PRIVATE_TLD !== undefined && cfg.BLOCK_PRIVATE_TLD !== BLOCK_PRIVATE_TLD) { BLOCK_PRIVATE_TLD = Boolean(cfg.BLOCK_PRIVATE_TLD); listConfigChanged = true; }
   if (cfg.PRIVATE_TLD_URL !== undefined && cfg.PRIVATE_TLD_URL !== PRIVATE_TLD_URL) { PRIVATE_TLD_URL = String(cfg.PRIVATE_TLD_URL); listConfigChanged = true; }
 
-  if (cfg.DNS_REDIRECT_ENABLED !== undefined) DNS_REDIRECT_ENABLED = Boolean(cfg.DNS_REDIRECT_ENABLED);
+  if (cfg.DNS_REDIRECT_ENABLED !== undefined && cfg.DNS_REDIRECT_ENABLED !== DNS_REDIRECT_ENABLED) { DNS_REDIRECT_ENABLED = Boolean(cfg.DNS_REDIRECT_ENABLED); listConfigChanged = true; }
   if (cfg.REDIRECT_RULES_URL !== undefined && cfg.REDIRECT_RULES_URL !== REDIRECT_RULES_URL) { REDIRECT_RULES_URL = String(cfg.REDIRECT_RULES_URL); listConfigChanged = true; }
 
-  if (cfg.MULLVAD_UPSTREAM_ENABLED !== undefined) MULLVAD_UPSTREAM_ENABLED = Boolean(cfg.MULLVAD_UPSTREAM_ENABLED);
+  if (cfg.MULLVAD_UPSTREAM_ENABLED !== undefined && cfg.MULLVAD_UPSTREAM_ENABLED !== MULLVAD_UPSTREAM_ENABLED) { MULLVAD_UPSTREAM_ENABLED = Boolean(cfg.MULLVAD_UPSTREAM_ENABLED); listConfigChanged = true; }
   if (cfg.MULLVAD_UPSTREAM_URL !== undefined && cfg.MULLVAD_UPSTREAM_URL !== MULLVAD_UPSTREAM_URL) { MULLVAD_UPSTREAM_URL = String(cfg.MULLVAD_UPSTREAM_URL); listConfigChanged = true; }
 
   if (cfg.DEBUG_ENABLED !== undefined) DEBUG_ENABLED = Boolean(cfg.DEBUG_ENABLED);
@@ -1133,9 +1133,7 @@ async function handleRequest(request, context) {
       try {
         const updates = await request.json();
         await saveConfigToKV(context.env, updates);
-        if (AD_BLOCK_ENABLED || BLOCK_PRIVATE_TLD || DNS_REDIRECT_ENABLED || MULLVAD_UPSTREAM_ENABLED) {
-          await ensureBlocklistsLoaded(request.url, context);
-        }
+        await ensureBlocklistsLoaded(request.url, context);
         return new Response(JSON.stringify({ ok: true, config: getCurrentConfig(), stats: getCurrentStats(context.env, adminUser) }), { headers: apiHeaders });
       } catch (e) {
         return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders });
@@ -1182,6 +1180,13 @@ async function handleRequest(request, context) {
             if (!line || /^[!#]/.test(line)) continue;
             const parts = line.split(/\s+/);
             if (parts.length >= 2) {
+                // Determine if they meet the strict dot logic (neither source nor target can be dotless unless it's an IP)
+                // Actually, targets can be IPs, but sources MUST have dots per user rules
+                if (!parts[0].includes('.') || (!parts[1].includes('.') && parts[1] !== '#')) {
+                     skipped++;
+                     continue;
+                }
+                
                 // For redirects, deduplicate by source domain
                 if (!parsedSet.has(parts[0])) {
                     parsedSet.add(parts[0]);
