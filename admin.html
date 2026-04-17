@@ -1219,7 +1219,7 @@
                 <header class="topbar">
                     <h2>{{ tabLabels[tab] }}</h2>
                     <div class="topbar-right" style="gap: 12px;">
-                        <span v-if="stats.hasKV && appState === 'admin'" class="badge badge-i" title="List Cache Age" style="font-family: monospace; background: transparent; color: var(--text-2); border: 1px solid var(--border);">
+                        <span v-if="stats.hasKV && appState === 'admin'" class="badge badge-s" title="List Cache Age" style="font-family: monospace;">
                             ⏱ Last Refresh: {{ stats.lastFetch==='never' ? 'Never' : timeAgo(stats.lastFetch) }}
                         </span>
                         
@@ -1350,19 +1350,6 @@
                             </div>
                         </div>
 
-                        <!-- List sizes -->
-                        <div class="card">
-                            <div class="card-head">
-                                <div class="card-title">List Sizes (merged in-memory)</div>
-                            </div>
-                            <div class="card-body" style="display:flex;flex-wrap:wrap;gap:8px">
-                                <span class="badge badge-d">Blocklist: {{ fmt(stats.blocklistSize) }}</span>
-                                <span class="badge badge-s">Allowlist: {{ fmt(stats.allowlistSize) }}</span>
-                                <span class="badge badge-i">Private TLDs: {{ fmt(stats.privateTldsSize) }}</span>
-                                <span class="badge badge-w">Redirect Rules: {{ stats.redirectRulesSize || 0 }}</span>
-                                <span class="badge badge-n">Mullvad Domains: {{ stats.mullvadDomainsSize || 0 }}</span>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- ======= FEATURES ======= -->
@@ -1373,7 +1360,7 @@
                                     <div class="card-title">Core Features</div>
                                     <div class="card-desc">Enable or disable major DNS gateway capabilities</div>
                                 </div>
-                                <span class="badge badge-i">{{ activeFeatureCount }} active</span>
+                                <span class="badge badge-i">{{ activeFeatureCount }}/{{ features.length }} active</span>
                             </div>
                             <div class="feat-table">
                                 <div v-for="f in features" :key="f.key" class="feat-row">
@@ -1417,6 +1404,7 @@
                         <div class="card">
                             <div class="card-head">
                                 <div class="card-title">DNS Upstream Servers</div>
+                                <span class="badge badge-i">{{ config.ECS_INJECTION_ENABLED ? 1 : 0 }}/1 active</span>
                             </div>
                             <div class="card-body">
                                 <div class="fg"><label class="fl">Primary Upstream</label><input class="fi fi-mono"
