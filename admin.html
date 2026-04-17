@@ -604,6 +604,16 @@
             background: #388bfd;
         }
 
+        .btn-save {
+            background: var(--bg-3);
+            color: var(--text-1);
+            border: 1px solid var(--border);
+        }
+
+        .btn-save:hover:not(:disabled) {
+            opacity: 0.8;
+        }
+
         .btn-s {
             background: var(--bg-2);
             color: var(--text-1);
@@ -695,14 +705,14 @@
         /* ===== TOAST ===== */
         .toast {
             position: fixed;
-            bottom: 24px;
+            top: 70px;
             right: 24px;
             padding: 11px 18px;
             border-radius: 8px;
             font-size: 13.5px;
             font-weight: 500;
             z-index: 200;
-            transform: translateY(80px);
+            transform: translateY(-40px);
             opacity: 0;
             transition: all 0.28s cubic-bezier(0.23, 1, 0.32, 1);
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -1493,8 +1503,8 @@
                                 </div>
                             </div>
 
-                            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                                <button @click="saveUpstreams" class="btn btn-p">
+                            <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                                <button @click="saveUpstreams" class="btn btn-save">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2">
                                         <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
@@ -1503,7 +1513,7 @@
                                     </svg>
                                     Save Upstream Settings
                                 </button>
-                                <button @click="resetUpstreams" class="btn">
+                                <button @click="resetUpstreams" class="btn btn-s">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                                         <path d="M3 3v5h5" />
@@ -1582,7 +1592,7 @@
                                         <div
                                             style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
                                             <div class="section-label" style="margin-bottom:0;">Raw Text Editor</div>
-                                            <button class="btn btn-p btn-sm" @click="saveListText"
+                                            <button class="btn btn-save btn-sm" @click="saveListText"
                                                 :disabled="!stats.hasKV || saving"
                                                 style="padding: 4px 12px; font-weight: 600;">
                                                 {{ saving ? 'Saving...' : 'Save & Apply Config' }}
@@ -1637,7 +1647,7 @@
                                                 style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
                                                 <div class="section-label" style="margin-bottom:0;">Raw Text Editor
                                                     (URLs)</div>
-                                                <button class="btn btn-p btn-sm" @click="saveUrlText"
+                                                <button class="btn btn-save btn-sm" @click="saveUrlText"
                                                     :disabled="!stats.hasKV || savingUrl"
                                                     style="padding: 4px 12px; font-weight: 600;">
                                                     {{ savingUrl ? 'Saving...' : 'Save & Fetch URLs' }}
