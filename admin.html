@@ -726,6 +726,12 @@
             border: 1px solid rgba(248, 81, 73, 0.3);
         }
 
+        .toast-info {
+            background: #0d2044;
+            color: var(--accent);
+            border: 1px solid rgba(56, 139, 253, 0.3);
+        }
+
         /* ===== ALERT ===== */
         .alert {
             padding: 11px 16px;
@@ -1016,7 +1022,7 @@
                 width: 200px;
             }
 
-            .content {
+            .content-inner {
                 padding: 16px;
             }
 
@@ -1423,12 +1429,12 @@
                                 <div class="frow">
                                     <div class="fg">
                                         <label class="fl">Timeout (ms)</label>
-                                        <input class="fi" type="number" v-model.number="config.UPSTREAM_TIMEOUT">
+                                        <input class="fi" type="number" v-model.number="config.UPSTREAM_TIMEOUT" min="500" max="30000">
                                     </div>
                                     <div class="fg">
                                         <label class="fl">List Refresh Interval (ms)</label>
                                         <input class="fi" type="number"
-                                            v-model.number="config.ALL_LISTS_REFRESH_INTERVAL">
+                                            v-model.number="config.ALL_LISTS_REFRESH_INTERVAL" min="60000" max="86400000">
                                         <div class="fh">= {{
                                             Math.round((config.ALL_LISTS_REFRESH_INTERVAL||3600000)/60000) }} minutes
                                         </div>
@@ -1534,8 +1540,8 @@
                                 <div class="card-body">
                                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
                                         <div class="section-label" style="margin-bottom:0;">Raw Text Editor</div>
-                                        <button class="btn btn-p btn-sm" @click="saveListText" :disabled="!stats.hasKV || saving" style="padding: 4px 12px; font-weight: 600;">
-                                            {{ saving ? 'Saving...' : 'Save & Apply Config' }}
+                                        <button class="btn btn-p btn-sm" @click="saveListText" :disabled="!stats.hasKV || savingList" style="padding: 4px 12px; font-weight: 600;">
+                                            {{ savingList ? 'Saving...' : 'Save & Apply Config' }}
                                         </button>
                                     </div>
                                     <div class="input-row" style="margin-bottom:16px;">
@@ -1660,8 +1666,7 @@
                 const saving = ref(false);
                 const listsLoading = ref(false);
                 const syncing = ref(false);
-                const currentRawText = ref('');
-                const currentRawUrlText = ref('');
+                const savingList = ref(false);
                 const savingUrl = ref(false);
 
                 // Toast
@@ -1839,15 +1844,28 @@
                     updateConfig(u); 
                 };
 
-                const saveUpstreams = () => updateConfig({
-                    UPSTREAM_PRIMARY: config.value.UPSTREAM_PRIMARY,
-                    UPSTREAM_FALLBACK: config.value.UPSTREAM_FALLBACK,
-                    UPSTREAM_GEO_BYPASS: config.value.UPSTREAM_GEO_BYPASS,
-                    UPSTREAM_TIMEOUT: parseInt(config.value.UPSTREAM_TIMEOUT) || 5000,
-                    ECS_PREFIX_V4: parseInt(config.value.ECS_PREFIX_V4) || 24,
-                    ECS_PREFIX_V6: parseInt(config.value.ECS_PREFIX_V6) || 48,
-                    ALL_LISTS_REFRESH_INTERVAL: parseInt(config.value.ALL_LISTS_REFRESH_INTERVAL) || 3600000,
-                });
+                const saveUpstreams = () => {
+                    const urls = [config.value.UPSTREAM_PRIMARY, config.value.UPSTREAM_FALLBACK, config.value.UPSTREAM_GEO_BYPASS];
+                    for (const u of urls) {
+                        if (u && !u.startsWith('https://')) {
+                            showToast('Upstream URLs must start with https://', 'error');
+                            return;
+                        }
+                    }
+                    if (!config.value.UPSTREAM_PRIMARY) {
+                        showToast('Primary upstream URL is required', 'error');
+                        return;
+                    }
+                    updateConfig({
+                        UPSTREAM_PRIMARY: config.value.UPSTREAM_PRIMARY,
+                        UPSTREAM_FALLBACK: config.value.UPSTREAM_FALLBACK,
+                        UPSTREAM_GEO_BYPASS: config.value.UPSTREAM_GEO_BYPASS,
+                        UPSTREAM_TIMEOUT: Math.max(500, parseInt(config.value.UPSTREAM_TIMEOUT) || 5000),
+                        ECS_PREFIX_V4: Math.min(32, Math.max(1, parseInt(config.value.ECS_PREFIX_V4) || 24)),
+                        ECS_PREFIX_V6: Math.min(128, Math.max(1, parseInt(config.value.ECS_PREFIX_V6) || 48)),
+                        ALL_LISTS_REFRESH_INTERVAL: Math.max(60000, parseInt(config.value.ALL_LISTS_REFRESH_INTERVAL) || 3600000),
+                    });
+                };
 
                 // ===== LISTS =====
                 const reloadCurrentRawText = () => {
@@ -1855,6 +1873,7 @@
                     const cUrls = customUrls.value;
                     const lt = listTab.value;
                     
+                    // Ưu tiên _text (raw text kèm comments) nếu server trả về
                     if (l[lt + '_text']) {
                         currentRawText.value = l[lt + '_text'];
                     } else if (l[lt]) {
@@ -1868,13 +1887,7 @@
                     }
 
                     if (lt === 'blocklist' || lt === 'allowlist') {
-                        if (cUrls[lt + '_text']) {
-                            currentRawUrlText.value = cUrls[lt + '_text'];
-                        } else if (cUrls[lt]) {
-                            currentRawUrlText.value = cUrls[lt].join('\n');
-                        } else {
-                            currentRawUrlText.value = '';
-                        }
+                        currentRawUrlText.value = cUrls[lt + '_text'] || (cUrls[lt] ? cUrls[lt].join('\n') : '');
                     }
                 };
 
@@ -1950,8 +1963,8 @@
                 };
 
                 const saveListText = async () => {
-                    if (saving.value) return;
-                    saving.value = true;
+                    if (savingList.value) return;
+                    savingList.value = true;
                     try {
                         const res = await apiFetch('/api/lists/save', { 
                             method: 'POST', 
@@ -1964,7 +1977,7 @@
                             refreshStats();
                         } else showToast('Failed to save list', 'error');
                     } catch (e) { showToast('Network error', 'error'); }
-                    finally { saving.value = false; }
+                    finally { savingList.value = false; }
                 };
 
                 const forceSync = async () => {
@@ -2001,7 +2014,7 @@
                     appState, tab, token, adminUsername, config, stats,
                     loginUser, loginPass, regUser, regPass, regPass2, authError,
                     lists, listTab, customUrls, currentRawText, currentRawUrlText,
-                    saving, savingUrl, listsLoading, toastMsg, toastType,
+                    saving, savingList, savingUrl, syncing, listsLoading, toastMsg, toastType,
                     tabLabels, listTabLabels, textPlaceholders, urlPlaceholders,
                     features, filters, allFeatures,
                     activeFeatureCount, activeFilterCount, activeCount, totalCount, totalCustomEntries,
