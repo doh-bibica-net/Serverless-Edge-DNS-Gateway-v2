@@ -1155,51 +1155,44 @@ async function handleRequest(request, context) {
       return new Response(JSON.stringify({ ok: true, stats: getCurrentStats(context.env, adminUser) }), { headers: apiHeaders });
     }
 
-    // POST /api/lists/add — Add entries to a list
-    if (path === '/api/lists/add' && request.method === 'POST') {
+    // POST /api/lists/save — Overwrite a list and save its raw text
+    if (path === '/api/lists/save' && request.method === 'POST') {
       if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
       try {
         const body = await request.json();
-        const { type, entries } = body;
+        const { type, text } = body;
         const validTypes = ['blocklist', 'allowlist', 'private_tlds', 'mullvad_upstream', 'redirect_rules'];
-        if (!validTypes.includes(type) || !Array.isArray(entries)) return new Response(JSON.stringify({ error: 'Invalid type or entries' }), { status: 400, headers: apiHeaders });
+        if (!validTypes.includes(type) || typeof text !== 'string') return new Response(JSON.stringify({ error: 'Invalid type or text' }), { status: 400, headers: apiHeaders });
+        
         const custom = await context.env.DNS_GATEWAY_KV.get('custom_domains', 'json').catch(() => null) || {};
-        if (!custom[type]) custom[type] = [];
+        
+        // Save the raw text so comments and formatting persist
+        custom[type + '_text'] = text;
+        const parsedArray = [];
+        const lines = text.split('\n');
+
         if (type === 'redirect_rules') {
-          for (const e of entries) {
-            if (e.source && e.target && !custom[type].find(r => r.source === e.source.toLowerCase())) {
-              custom[type].push({ source: e.source.toLowerCase(), target: e.target.toLowerCase() });
+          for (const rawLine of lines) {
+            const line = rawLine.trim().toLowerCase();
+            if (!line || /^[!#]/.test(line)) continue;
+            const parts = line.split(/\s+/);
+            if (parts.length >= 2) {
+                parsedArray.push({ source: parts[0], target: parts[1] });
             }
           }
         } else {
-          for (const e of entries) {
-            const d = String(e).trim().toLowerCase();
-            if (d && DOMAIN_REGEX.test(d) && !custom[type].includes(d)) custom[type].push(d);
+          for (const rawLine of lines) {
+            const line = rawLine.trim().toLowerCase();
+            if (!line || /^[!#]/.test(line)) continue;
+            if (DOMAIN_REGEX.test(line)) {
+               // Strict dot requirement except for private_tlds
+               if (type !== 'private_tlds' && !line.includes('.')) continue;
+               if (!parsedArray.includes(line)) parsedArray.push(line);
+            }
           }
         }
-        await context.env.DNS_GATEWAY_KV.put('custom_domains', JSON.stringify(custom));
-        await triggerListSync(context.env);
-        return new Response(JSON.stringify({ ok: true, lists: custom }), { headers: apiHeaders });
-      } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
-    }
-
-    // POST /api/lists/remove — Remove entries from a list
-    if (path === '/api/lists/remove' && request.method === 'POST') {
-      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
-      try {
-        const body = await request.json();
-        const { type, entries } = body;
-        const validTypes = ['blocklist', 'allowlist', 'private_tlds', 'mullvad_upstream', 'redirect_rules'];
-        if (!validTypes.includes(type) || !Array.isArray(entries)) return new Response(JSON.stringify({ error: 'Invalid type or entries' }), { status: 400, headers: apiHeaders });
-        const custom = await context.env.DNS_GATEWAY_KV.get('custom_domains', 'json').catch(() => null) || {};
-        if (!custom[type]) return new Response(JSON.stringify({ ok: true, lists: custom }), { headers: apiHeaders });
-        if (type === 'redirect_rules') {
-          const removeSet = new Set(entries.map(e => String(e).toLowerCase()));
-          custom[type] = custom[type].filter(r => !removeSet.has(r.source));
-        } else {
-          const removeSet = new Set(entries.map(e => String(e).trim().toLowerCase()));
-          custom[type] = custom[type].filter(d => !removeSet.has(d));
-        }
+        
+        custom[type] = parsedArray;
         await context.env.DNS_GATEWAY_KV.put('custom_domains', JSON.stringify(custom));
         await triggerListSync(context.env);
         return new Response(JSON.stringify({ ok: true, lists: custom }), { headers: apiHeaders });
