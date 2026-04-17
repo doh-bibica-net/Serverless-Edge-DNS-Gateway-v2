@@ -1197,7 +1197,7 @@
                         <div class="stats-grid">
                             <div class="stat-card">
                                 <div class="stat-label">Active Features</div>
-                                <div class="stat-value">{{ activeFeatureCount }}<small>/{{ features.length }}</small>
+                                <div class="stat-value">{{ activeFeatureCount }}<small>/{{ features.length + 1 }}</small>
                                 </div>
                                 <div class="stat-sub">Core capabilities</div>
                             </div>
@@ -1217,10 +1217,20 @@
                                 <div class="stat-value">{{ fmt(stats.allowlistSize) }}</div>
                                 <div class="stat-sub">Allowed domains (merged)</div>
                             </div>
+                            <div class="stat-card err">
+                                <div class="stat-label">Private TLDs</div>
+                                <div class="stat-value">{{ fmt(stats.privateTldsSize) }}</div>
+                                <div class="stat-sub">Internal domains (merged)</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Mullvad</div>
+                                <div class="stat-value">{{ stats.mullvadDomainsSize || 0 }}</div>
+                                <div class="stat-sub">Upstream domains (merged)</div>
+                            </div>
                             <div class="stat-card warn">
                                 <div class="stat-label">Redirect Rules</div>
                                 <div class="stat-value">{{ stats.redirectRulesSize || 0 }}</div>
-                                <div class="stat-sub">CNAME overrides</div>
+                                <div class="stat-sub">CNAME overrides (merged)</div>
                             </div>
                             <div class="stat-card">
                                 <div class="stat-label">Last Refresh</div>
@@ -1388,6 +1398,13 @@
                                 <div class="card-title">ECS (EDNS Client Subnet)</div>
                             </div>
                             <div class="card-body">
+                                <div class="feat-row" style="padding: 0 0 16px 0; border-bottom: 1px solid var(--border-s); margin-bottom: 16px;">
+                                    <div class="feat-info">
+                                        <div class="feat-name">Enable ECS Injection</div>
+                                        <div class="feat-desc">Inject EDNS Client Subnet for CDN geo-optimization</div>
+                                    </div>
+                                    <div class="toggle" :class="{on: config.ECS_INJECTION_ENABLED, disabled: saving}" @click="toggleFeature('ECS_INJECTION_ENABLED')"></div>
+                                </div>
                                 <div class="frow">
                                     <div class="fg">
                                         <label class="fl">IPv4 Prefix Length</label>
@@ -1464,7 +1481,7 @@
                                     <div>
                                         <div class="card-title">Custom Redirect Rules</div>
                                         <div class="card-desc">DNS CNAME overrides — queries for source domain return a
-                                            CNAME to target</div>
+                                            CNAME to target (Exact match only)</div>
                                     </div>
                                     <span class="badge badge-i">{{ (lists.redirect_rules||[]).length }} rules</span>
                                 </div>
@@ -1526,7 +1543,9 @@
                                 <div class="card-head">
                                     <div>
                                         <div class="card-title">Custom {{ listTabLabels[listTab] }} Domains</div>
-                                        <div class="card-desc">Manually added domains — exact match only</div>
+                                        <div class="card-desc" v-if="listTab==='blocklist' || listTab==='allowlist'">Manually added domains — exact match only</div>
+                                        <div class="card-desc" v-else-if="listTab==='private_tlds'">Manually added domains — suffix match (e.g. "local" blocks "domain.local")</div>
+                                        <div class="card-desc" v-else-if="listTab==='mullvad_upstream'">Manually added domains — suffix match (e.g. "bibica.net" routes "a.bibica.net")</div>
                                     </div>
                                     <span class="badge" :class="listTab==='allowlist'?'badge-s':'badge-d'">{{
                                         (lists[listTab]||[]).length }} entries</span>
@@ -1687,11 +1706,13 @@
 
                 const features = [
                     { key: 'AD_BLOCK_ENABLED', label: 'Ad & Tracker Blocking', desc: 'Block ads/trackers using community-maintained blocklists' },
-                    { key: 'ECS_INJECTION_ENABLED', label: 'ECS Injection', desc: 'Inject EDNS Client Subnet for CDN geo-optimization' },
                     { key: 'BLOCK_PRIVATE_TLD', label: 'Block Private TLDs', desc: 'Block internal domains (.local, .internal, routers)' },
                     { key: 'DNS_REDIRECT_ENABLED', label: 'DNS Redirect', desc: 'Redirect domains to custom CNAME targets' },
                     { key: 'MULLVAD_UPSTREAM_ENABLED', label: 'Mullvad Upstream', desc: 'Route specific domains through Mullvad DNS' },
                     { key: 'DEBUG_ENABLED', label: 'Debug Endpoint', desc: 'Enable /debug diagnostics endpoint' },
+                ];
+                const otherFeatures = [
+                    { key: 'ECS_INJECTION_ENABLED', label: 'ECS Injection', desc: 'Inject EDNS Client Subnet for CDN geo-optimization' }
                 ];
                 const filters = [
                     { key: 'BLOCK_ANY', label: 'Block ANY (TYPE 255)', desc: 'Block ANY queries — DNS amplification attack vector' },
@@ -1700,8 +1721,8 @@
                     { key: 'BLOCK_HTTPS', label: 'Block HTTPS (TYPE 65)', desc: 'Block HTTPS/SVCB record queries' },
                 ];
 
-                const allFeatures = computed(() => [...features, ...filters]);
-                const activeFeatureCount = computed(() => features.filter(f => config.value[f.key]).length);
+                const allFeatures = computed(() => [...features, ...otherFeatures, ...filters]);
+                const activeFeatureCount = computed(() => features.filter(f => config.value[f.key]).length + otherFeatures.filter(f => config.value[f.key]).length);
                 const activeFilterCount = computed(() => filters.filter(f => config.value[f.key]).length);
                 const activeCount = computed(() => allFeatures.value.filter(f => config.value[f.key]).length);
                 const totalCount = computed(() => allFeatures.value.length);
