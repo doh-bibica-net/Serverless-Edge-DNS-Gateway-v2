@@ -1578,36 +1578,24 @@
                                     <div>
                                         <div class="card-title">External {{ listTabLabels[listTab] }} URLs</div>
                                         <div class="card-desc">Subscribe to remote blocklists — AdBlock, hosts file, and
-                                            plain domain formats are supported</div>
+                                            plain domain formats are supported. Comments starting with # are ignored.</div>
                                     </div>
                                     <span class="badge badge-i">{{ (customUrls[listTab]||[]).length }}
                                         subscriptions</span>
                                 </div>
                                 <div class="card-body">
-                                    <div class="section-label">Add Subscription URL</div>
-                                    <div class="input-row" style="margin-bottom:16px">
-                                        <input class="fi" v-model="newUrl"
-                                            placeholder="https://example.com/blocklist.txt" @keyup.enter="addUrl"
-                                            :disabled="!stats.hasKV">
-                                        <button class="btn btn-p btn-sm" @click="addUrl" :disabled="!stats.hasKV">Add
-                                            URL</button>
+                                    <div class="section-label">Raw Text Editor (URLs)</div>
+                                    <div class="input-row" style="margin-bottom:16px;">
+                                        <textarea class="fi fi-mono" v-model="currentRawUrlText"
+                                            placeholder="# Format: One subscription URL per line
+https://example.com/blocklist.txt
+https://example.com/hosts.txt"
+                                            :disabled="!stats.hasKV" rows="5" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
                                     </div>
-                                    <div class="section-label">Subscriptions ({{ (customUrls[listTab]||[]).length }})
-                                    </div>
-                                    <div class="domain-list">
-                                        <div v-if="!(customUrls[listTab]||[]).length" class="list-empty">
-                                            <div class="list-empty-icon">🔗</div>
-                                            No external URLs — add subscription URLs to auto-fetch and merge domains
-                                        </div>
-                                        <div v-for="u in (customUrls[listTab]||[])" :key="u" class="domain-item">
-                                            <span class="domain-item-text"
-                                                style="font-family:inherit;font-size:12.5px;color:var(--accent)">{{ u
-                                                }}</span>
-                                            <button class="domain-remove" @click="removeUrl(listTab, u)"
-                                                title="Remove">✕</button>
-                                        </div>
-                                    </div>
-                                    <div class="fh" style="margin-top:10px">Domains are auto-cleaned
+                                    <button class="btn btn-i" @click="saveUrlText" :disabled="!stats.hasKV || savingUrl" style="width: 100%; padding: 10px; font-weight: 600;">
+                                        {{ savingUrl ? 'Saving...' : 'Save & Fetch URLs' }}
+                                    </button>
+                                    <div class="fh" style="margin-top:10px; text-align: center;">Domains are auto-cleaned
                                         (AdBlock/hosts/plain formats). Fetched and merged on next list refresh.</div>
                                 </div>
                             </div>
@@ -1677,8 +1665,9 @@
                 const saving = ref(false);
                 const listsLoading = ref(false);
                 const syncing = ref(false);
-                const newUrl = ref('');
                 const currentRawText = ref('');
+                const currentRawUrlText = ref('');
+                const savingUrl = ref(false);
 
                 // Toast
                 const toastMsg = ref(''); const toastType = ref('success');
@@ -1850,7 +1839,9 @@
                 // ===== LISTS =====
                 const reloadCurrentRawText = () => {
                     const l = lists.value;
+                    const cUrls = customUrls.value;
                     const lt = listTab.value;
+                    
                     if (l[lt + '_text']) {
                         currentRawText.value = l[lt + '_text'];
                     } else if (l[lt]) {
@@ -1861,6 +1852,16 @@
                         }
                     } else {
                         currentRawText.value = '';
+                    }
+
+                    if (lt === 'blocklist' || lt === 'allowlist') {
+                        if (cUrls[lt + '_text']) {
+                            currentRawUrlText.value = cUrls[lt + '_text'];
+                        } else if (cUrls[lt]) {
+                            currentRawUrlText.value = cUrls[lt].join('\n');
+                        } else {
+                            currentRawUrlText.value = '';
+                        }
                     }
                 };
 
@@ -1890,6 +1891,24 @@
                     tab.value = 'lists';
                     refreshStats();
                     await loadLists();
+                };
+
+                const saveUrlText = async () => {
+                    if (savingUrl.value) return;
+                    savingUrl.value = true;
+                    try {
+                        const res = await apiFetch('/api/urls/save', { 
+                            method: 'POST', 
+                            body: JSON.stringify({ type: listTab.value, text: currentRawUrlText.value }) 
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            customUrls.value = data.urls;
+                            showToast('Subscription URLs saved');
+                            refreshStats();
+                        } else showToast('Failed to save URLs', 'error');
+                    } catch (e) { showToast('Network error', 'error'); }
+                    finally { savingUrl.value = false; }
                 };
 
                 const addUrl = async () => {
@@ -1968,13 +1987,13 @@
                 return {
                     appState, tab, token, adminUsername, config, stats,
                     loginUser, loginPass, regUser, regPass, regPass2, authError,
-                    lists, listTab, customUrls, newUrl, currentRawText,
-                    saving, listsLoading, toastMsg, toastType,
+                    lists, listTab, customUrls, currentRawText, currentRawUrlText,
+                    saving, savingUrl, listsLoading, toastMsg, toastType,
                     tabLabels, listTabLabels,
                     features, filters, allFeatures,
                     activeFeatureCount, activeFilterCount, activeCount, totalCount, totalCustomEntries,
                     register, login, logout, toggleFeature, saveUpstreams,
-                    switchToLists, loadLists, saveListText, addUrl, removeUrl, forceSync,
+                    switchToLists, loadLists, saveListText, saveUrlText, forceSync,
                     fmt, timeAgo, showToast, theme, toggleTheme
                 };
             }
