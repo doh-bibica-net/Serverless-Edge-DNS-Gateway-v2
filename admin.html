@@ -1218,20 +1218,27 @@
             <div class="main">
                 <header class="topbar">
                     <h2>{{ tabLabels[tab] }}</h2>
-                    <div class="topbar-right">
-                        <button v-if="appState === 'admin'" class="btn" @click="forceSync" :disabled="syncing" style="padding: 4px 10px; background: var(--accent-m); border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
-                            {{ syncing ? '⏳ Syncing...' : '🔄 Sync Now' }}
-                        </button>
-                        <button class="btn" @click="toggleTheme" title="Toggle Light/Dark Theme" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
-                            {{ theme === 'light' ? '🌙' : '☀️' }}
-                        </button>
-                        <span v-if="stats.hasKV" class="badge badge-s">
+                    <div class="topbar-right" style="gap: 12px;">
+                        <span v-if="stats.hasKV && appState === 'admin'" class="badge badge-i" title="List Cache Age" style="font-family: monospace; background: transparent; color: var(--text-2); border: 1px solid var(--border);">
+                            ⏱ {{ stats.lastFetch==='never' ? 'Never' : timeAgo(stats.lastFetch) }}
+                        </span>
+                        
+                        <div style="display: flex; gap: 8px;">
+                            <button v-if="appState === 'admin'" class="btn" @click="forceSync" :disabled="syncing" title="Force Sync Lists" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
+                                {{ syncing ? '⏳' : '🔄' }}
+                            </button>
+                            <button class="btn" @click="toggleTheme" title="Toggle Light/Dark Theme" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
+                                {{ theme === 'light' ? '🌙' : '☀️' }}
+                            </button>
+                        </div>
+                        
+                        <span v-if="stats.hasKV" class="badge badge-s" style="margin-left: 4px;">
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                 <circle cx="12" cy="12" r="12" />
                             </svg>
                             KV Connected
                         </span>
-                        <span v-else class="badge badge-w">⚠ No KV</span>
+                        <span v-else class="badge badge-w" style="margin-left: 4px;">⚠ No KV</span>
                     </div>
                 </header>
 
@@ -1249,9 +1256,15 @@
                         <div class="stats-grid">
                             <div class="stat-card">
                                 <div class="stat-label">Active Features</div>
-                                <div class="stat-value">{{ activeFeatureCount }}<small>/{{ features.length + 1 }}</small>
+                                <div class="stat-value">{{ activeFeatureCount }}<small>/{{ features.length }}</small>
                                 </div>
                                 <div class="stat-sub">Core capabilities</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Active Upstreams</div>
+                                <div class="stat-value">{{ config.ECS_INJECTION_ENABLED ? 1 : 0 }}<small>/1</small>
+                                </div>
+                                <div class="stat-sub">ECS capabilities (Upstreams)</div>
                             </div>
                             <div class="stat-card">
                                 <div class="stat-label">Active Filters</div>
@@ -1284,12 +1297,6 @@
                                 <div class="stat-value">{{ stats.redirectRulesSize || 0 }}</div>
                                 <div class="stat-sub">CNAME overrides (merged)</div>
                             </div>
-                            <div class="stat-card">
-                                <div class="stat-label">Last Refresh</div>
-                                <div class="stat-value" style="font-size:18px;margin-top:4px">{{
-                                    stats.lastFetch==='never' ? 'Never' : timeAgo(stats.lastFetch) }}</div>
-                                <div class="stat-sub">List cache age</div>
-                            </div>
                         </div>
 
                         <!-- Feature status table -->
@@ -1317,7 +1324,11 @@
                         <!-- Upstream summary -->
                         <div class="card">
                             <div class="card-head">
-                                <div class="card-title">DNS Upstreams</div>
+                                <div>
+                                    <div class="card-title">DNS Upstreams</div>
+                                    <div class="card-desc">Resolver endpoints and timeout settings</div>
+                                </div>
+                                <span class="badge badge-i">{{ config.ECS_INJECTION_ENABLED ? 1 : 0 }}/1 active</span>
                             </div>
                             <div class="card-body">
                                 <table class="upstream-table">
