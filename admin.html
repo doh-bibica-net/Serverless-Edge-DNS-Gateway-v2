@@ -1603,9 +1603,8 @@
                                         <div
                                             style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
                                             <div class="section-label" style="margin-bottom:0;">Raw Text Editor</div>
-                                            <button class="btn btn-save btn-sm" @click="saveListText"
-                                                :disabled="!stats.hasKV || saving"
-                                                style="padding: 4px 12px; font-weight: 600;">
+                                            <button class="btn btn-save" @click="saveListText"
+                                                :disabled="!stats.hasKV || saving">
                                                 {{ saving ? 'Saving...' : 'Save & Apply Config' }}
                                             </button>
                                         </div>
@@ -1658,9 +1657,8 @@
                                                 style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
                                                 <div class="section-label" style="margin-bottom:0;">Raw Text Editor
                                                     (URLs)</div>
-                                                <button class="btn btn-save btn-sm" @click="saveUrlText"
-                                                    :disabled="!stats.hasKV || savingUrl"
-                                                    style="padding: 4px 12px; font-weight: 600;">
+                                                <button class="btn btn-save" @click="saveUrlText"
+                                                    :disabled="!stats.hasKV || savingUrl">
                                                     {{ savingUrl ? 'Saving...' : 'Save & Fetch URLs' }}
                                                 </button>
                                             </div>
