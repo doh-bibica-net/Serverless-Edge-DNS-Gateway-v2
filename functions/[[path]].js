@@ -1135,6 +1135,15 @@ async function handleRequest(request, context) {
     if (path === '/api/config' && request.method === 'POST') {
       try {
         const updates = await request.json();
+
+        // Strict URL validation to prevent input errors from crashing the resolveQuery process
+        const urlKeys = ['UPSTREAM_PRIMARY', 'UPSTREAM_FALLBACK', 'UPSTREAM_GEO_BYPASS'];
+        for (const k of urlKeys) {
+          if (updates[k]) {
+            try { new URL(updates[k]); } catch { return new Response(JSON.stringify({ error: `Invalid absolute URL format for ${k}` }), { status: 400, headers: apiHeaders }); }
+          }
+        }
+
         await saveConfigToKV(context.env, updates);
         await ensureBlocklistsLoaded(request.url, context);
         return new Response(JSON.stringify({ ok: true, config: getCurrentConfig(), stats: getCurrentStats(context.env, adminUser) }), { headers: apiHeaders });
