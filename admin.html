@@ -634,6 +634,17 @@
             background: var(--err-m);
         }
 
+        [data-theme='light'] .btn:not(.btn-logout):not(.btn-d) {
+            background: var(--bg-3);
+            color: var(--text-1);
+            border: 1px solid var(--border);
+        }
+
+        [data-theme='light'] .btn:not(.btn-logout):not(.btn-d):hover:not(:disabled) {
+            opacity: 0.8;
+            background: var(--bg-3);
+        }
+
         .btn-sm {
             padding: 5px 10px;
             font-size: 12px;
