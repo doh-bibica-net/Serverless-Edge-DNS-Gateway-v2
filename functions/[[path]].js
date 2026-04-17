@@ -1169,6 +1169,7 @@ async function handleRequest(request, context) {
         // Save the raw text so comments and formatting persist
         custom[type + '_text'] = text;
         const parsedArray = [];
+        const parsedSet = new Set();
         const lines = text.split('\n');
 
         if (type === 'redirect_rules') {
@@ -1177,7 +1178,11 @@ async function handleRequest(request, context) {
             if (!line || /^[!#]/.test(line)) continue;
             const parts = line.split(/\s+/);
             if (parts.length >= 2) {
-                parsedArray.push({ source: parts[0], target: parts[1] });
+                // For redirects, deduplicate by source domain
+                if (!parsedSet.has(parts[0])) {
+                    parsedSet.add(parts[0]);
+                    parsedArray.push({ source: parts[0], target: parts[1] });
+                }
             }
           }
         } else {
@@ -1187,9 +1192,10 @@ async function handleRequest(request, context) {
             if (DOMAIN_REGEX.test(line)) {
                // Strict dot requirement except for private_tlds
                if (type !== 'private_tlds' && !line.includes('.')) continue;
-               if (!parsedArray.includes(line)) parsedArray.push(line);
+               parsedSet.add(line);
             }
           }
+          parsedArray.push(...parsedSet);
         }
         
         custom[type] = parsedArray;
@@ -1206,32 +1212,28 @@ async function handleRequest(request, context) {
       return new Response(JSON.stringify(urls), { headers: apiHeaders });
     }
 
-    // POST /api/urls/add — Add external list URL
-    if (path === '/api/urls/add' && request.method === 'POST') {
+    // POST /api/urls/save — Save Raw Text for External URLs
+    if (path === '/api/urls/save' && request.method === 'POST') {
       if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
       try {
         const body = await request.json();
-        const { type, url } = body;
-        if (!['blocklist', 'allowlist'].includes(type) || !url) return new Response(JSON.stringify({ error: 'Invalid type or url' }), { status: 400, headers: apiHeaders });
+        const { type, text } = body;
+        if (!['blocklist', 'allowlist'].includes(type) || typeof text !== 'string') return new Response(JSON.stringify({ error: 'Invalid type or text' }), { status: 400, headers: apiHeaders });
+        
         const urls = await context.env.DNS_GATEWAY_KV.get('custom_urls', 'json').catch(() => null) || {};
-        if (!urls[type]) urls[type] = [];
-        const u = url.trim();
-        if (u && !urls[type].includes(u)) urls[type].push(u);
-        await context.env.DNS_GATEWAY_KV.put('custom_urls', JSON.stringify(urls));
-        await triggerListSync(context.env);
-        return new Response(JSON.stringify({ ok: true, urls }), { headers: apiHeaders });
-      } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
-    }
-
-    // POST /api/urls/remove — Remove external list URL
-    if (path === '/api/urls/remove' && request.method === 'POST') {
-      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
-      try {
-        const body = await request.json();
-        const { type, url } = body;
-        if (!['blocklist', 'allowlist'].includes(type) || !url) return new Response(JSON.stringify({ error: 'Invalid type or url' }), { status: 400, headers: apiHeaders });
-        const urls = await context.env.DNS_GATEWAY_KV.get('custom_urls', 'json').catch(() => null) || {};
-        if (urls[type]) urls[type] = urls[type].filter(u => u !== url);
+        urls[type + '_text'] = text;
+        
+        const parsedSet = new Set();
+        const lines = text.split('\n');
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line || /^[!#]/.test(line)) continue;
+          if (line.startsWith('http://') || line.startsWith('https://')) {
+            parsedSet.add(line);
+          }
+        }
+        
+        urls[type] = Array.from(parsedSet);
         await context.env.DNS_GATEWAY_KV.put('custom_urls', JSON.stringify(urls));
         await triggerListSync(context.env);
         return new Response(JSON.stringify({ ok: true, urls }), { headers: apiHeaders });
