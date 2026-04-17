@@ -4,163 +4,531 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin — Serverless Edge DNS Gateway</title>
-    <meta name="description" content="Admin panel for Serverless Edge DNS Gateway">
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <style>
         [v-cloak] { display: none; }
         :root {
-            --sidebar-w: 260px;
-            --bg-canvas: #0d1117; --bg-1: #161b22; --bg-2: #21262d; --bg-3: #292e36;
-            --border: #30363d; --border-s: #21262d;
-            --text-1: #e6edf3; --text-2: #8b949e; --text-3: #6e7681;
-            --accent: #58a6ff; --accent-em: #1f6feb; --accent-m: rgba(56,139,253,0.15);
-            --ok: #3fb950; --ok-m: rgba(63,185,80,0.15);
-            --err: #f85149; --err-m: rgba(248,81,73,0.15);
-            --warn: #d29922; --warn-m: rgba(210,153,34,0.15);
-            --r: 8px; --tr: 0.2s ease;
+            --sidebar-w: 240px;
+            --bg-canvas: #0d1117;
+            --bg-1: #161b22;
+            --bg-2: #21262d;
+            --bg-3: #30363d;
+            --border: #30363d;
+            --border-s: #21262d;
+            --text-1: #e6edf3;
+            --text-2: #8b949e;
+            --text-3: #6e7681;
+            --accent: #58a6ff;
+            --accent-em: #1f6feb;
+            --accent-m: rgba(56,139,253,0.15);
+            --ok: #3fb950;
+            --ok-m: rgba(63,185,80,0.15);
+            --err: #f85149;
+            --err-m: rgba(248,81,73,0.15);
+            --warn: #d29922;
+            --warn-m: rgba(210,153,34,0.15);
+            --r: 8px;
+            --tr: 0.18s ease;
         }
-        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; background:var(--bg-canvas); color:var(--text-1); line-height:1.5; height:100vh; overflow:hidden; }
-        .app { display:flex; height:100vh; }
-        /* Sidebar */
-        .sidebar { width:var(--sidebar-w); background:#010409; border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
-        .sidebar-brand { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
-        .sidebar-brand svg { color:var(--accent); flex-shrink:0; }
-        .sidebar-brand span { font-size:15px; font-weight:600; }
-        .sidebar-nav { flex:1; padding:12px 0; }
-        .nav-item { display:flex; align-items:center; gap:12px; padding:10px 24px; color:var(--text-2); cursor:pointer; transition:all var(--tr); border-left:3px solid transparent; font-size:14px; user-select:none; }
-        .nav-item:hover { color:var(--text-1); background:rgba(255,255,255,0.04); }
-        .nav-item.active { color:var(--text-1); background:var(--accent-m); border-left-color:var(--accent); }
-        .nav-item svg { width:18px; height:18px; flex-shrink:0; }
-        .sidebar-footer { padding:16px 24px; border-top:1px solid var(--border); font-size:11px; color:var(--text-3); text-align:center; line-height:1.8; }
-        /* Main */
-        .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-        .topbar { padding:16px 32px; border-bottom:1px solid var(--border); background:var(--bg-1); display:flex; justify-content:space-between; align-items:center; }
-        .topbar h2 { font-size:20px; font-weight:600; }
-        .topbar-badges { display:flex; gap:8px; align-items:center; }
-        .content { flex:1; overflow-y:auto; padding:32px; }
-        /* Cards */
-        .card { background:var(--bg-1); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:20px; }
-        .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border); }
-        .card-title { font-size:16px; font-weight:600; }
-        /* Stats */
-        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:24px; }
-        .stat { background:var(--bg-1); border:1px solid var(--border); border-radius:var(--r); padding:20px; border-left:3px solid var(--accent); }
-        .stat-label { font-size:12px; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
-        .stat-value { font-size:28px; font-weight:700; }
-        .stat.s { border-left-color:var(--ok); } .stat.w { border-left-color:var(--warn); }
-        /* Toggle */
-        .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:16px 0; border-bottom:1px solid var(--border-s); }
-        .toggle-row:last-child { border-bottom:none; }
-        .toggle-info { flex:1; } .toggle-label { font-size:14px; font-weight:500; margin-bottom:4px; } .toggle-desc { font-size:13px; color:var(--text-2); }
-        .toggle { width:44px; height:24px; background:var(--bg-3); border:1px solid var(--border); border-radius:12px; position:relative; cursor:pointer; transition:all var(--tr); flex-shrink:0; margin-left:16px; }
-        .toggle.on { background:var(--ok); border-color:var(--ok); }
-        .toggle::after { content:''; width:18px; height:18px; background:#fff; border-radius:50%; position:absolute; top:2px; left:2px; transition:transform var(--tr); box-shadow:0 1px 3px rgba(0,0,0,0.3); }
-        .toggle.on::after { transform:translateX(20px); }
-        /* Badge */
-        .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600; }
-        .badge-s { background:var(--ok-m); color:var(--ok); } .badge-d { background:var(--err-m); color:var(--err); }
-        .badge-w { background:var(--warn-m); color:var(--warn); } .badge-i { background:var(--accent-m); color:var(--accent); }
-        /* Forms */
-        .fg { margin-bottom:20px; } .fl { display:block; font-size:13px; font-weight:500; color:var(--text-2); margin-bottom:8px; }
-        .fi { width:100%; padding:10px 14px; background:var(--bg-2); border:1px solid var(--border); border-radius:6px; color:var(--text-1); font-size:14px; font-family:'SF Mono','Cascadia Code','Fira Code',monospace; transition:border-color var(--tr); outline:none; }
-        .fi:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-m); }
-        .fi::placeholder { color:var(--text-3); } .fh { font-size:12px; color:var(--text-3); margin-top:6px; }
-        .frow { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-        /* Buttons */
-        .btn { display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer; border:1px solid transparent; transition:all var(--tr); user-select:none; }
-        .btn-p { background:var(--accent-em); color:#fff; } .btn-p:hover { background:#388bfd; }
-        .btn-s { background:var(--bg-2); color:var(--text-1); border-color:var(--border); } .btn-s:hover { background:var(--bg-3); }
-        .btn-d { background:var(--err-m); color:var(--err); border:none; } .btn-d:hover { background:var(--err); color:#fff; }
-        .btn-sm { padding:6px 12px; font-size:12px; }
-        /* Login/Register Overlay */
-        .login-overlay { position:fixed; inset:0; background:var(--bg-canvas); display:flex; align-items:center; justify-content:center; z-index:100; }
-        .login-card { background:var(--bg-1); border:1px solid var(--border); border-radius:12px; padding:40px; width:100%; max-width:420px; box-shadow:0 4px 24px rgba(0,0,0,0.5); }
-        .login-card h2 { font-size:24px; font-weight:600; text-align:center; margin-bottom:8px; }
-        .login-card p { font-size:14px; color:var(--text-2); text-align:center; margin-bottom:32px; }
-        .login-btn { width:100%; padding:12px; font-size:15px; justify-content:center; }
-        .login-error { color:var(--err); font-size:13px; text-align:center; margin-bottom:16px; }
-        /* Toast */
-        .toast { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:var(--r); font-size:14px; font-weight:500; z-index:200; transform:translateX(120%); transition:transform 0.3s cubic-bezier(0.23,1,0.32,1); box-shadow:0 4px 12px rgba(0,0,0,0.4); }
-        .toast.show { transform:translateX(0); } .toast-success { background:var(--ok); color:#fff; } .toast-error { background:var(--err); color:#fff; }
-        /* Feature grid */
-        .feat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
-        .feat-item { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-2); border-radius:6px; border:1px solid var(--border-s); }
-        .feat-name { font-size:13px; font-weight:500; }
-        /* Alert */
-        .alert { padding:12px 16px; border-radius:6px; font-size:13px; margin-bottom:20px; display:flex; align-items:center; gap:10px; }
-        .alert-w { background:var(--warn-m); color:var(--warn); border:1px solid rgba(210,153,34,0.3); }
-        .alert-i { background:var(--accent-m); color:var(--accent); border:1px solid rgba(56,139,253,0.3); }
-        .alert code { background:rgba(0,0,0,0.3); padding:1px 6px; border-radius:4px; font-size:12px; }
-        .upstream-info { font-family:monospace; font-size:13px; color:var(--text-2); line-height:2.2; }
-        .upstream-info span { color:var(--accent); }
-        /* Domain list CRUD */
-        .list-input-row { display:flex; gap:8px; margin-bottom:16px; }
-        .list-input-row .fi { flex:1; }
-        .domain-list { max-height:300px; overflow-y:auto; }
-        .domain-item { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-bottom:1px solid var(--border-s); font-size:13px; font-family:'SF Mono','Cascadia Code',monospace; }
-        .domain-item:last-child { border-bottom:none; }
-        .domain-item:hover { background:var(--bg-2); }
-        .domain-remove { background:none; border:none; color:var(--text-3); cursor:pointer; font-size:16px; padding:2px 6px; border-radius:4px; transition:all var(--tr); }
-        .domain-remove:hover { color:var(--err); background:var(--err-m); }
-        .list-section { margin-bottom:24px; }
-        .list-section-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-        .list-section-title { font-size:14px; font-weight:600; }
-        .list-empty { padding:24px; text-align:center; color:var(--text-3); font-size:13px; }
-        /* Sub-tabs */
-        .sub-tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); }
-        .sub-tab { padding:8px 16px; font-size:13px; color:var(--text-2); cursor:pointer; border-bottom:2px solid transparent; transition:all var(--tr); margin-bottom:-1px; }
-        .sub-tab:hover { color:var(--text-1); }
-        .sub-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-        /* Redirect rule inputs */
-        .redir-row { display:grid; grid-template-columns:1fr auto 1fr auto; gap:8px; align-items:center; margin-bottom:12px; }
-        .redir-arrow { color:var(--text-3); font-size:16px; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg-canvas);
+            color: var(--text-1);
+            line-height: 1.5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app { display: flex; height: 100vh; }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: #010409;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .sidebar-brand {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sidebar-brand-icon { color: var(--accent); flex-shrink: 0; }
+        .sidebar-brand-text { font-size: 14px; font-weight: 600; line-height: 1.3; }
+        .sidebar-brand-sub { font-size: 11px; color: var(--text-3); font-weight: 400; }
+        .sidebar-nav { flex: 1; padding: 8px 0; overflow-y: auto; }
+        .nav-section { padding: 16px 20px 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-3); }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 20px;
+            color: var(--text-2);
+            cursor: pointer;
+            transition: all var(--tr);
+            border-left: 2px solid transparent;
+            font-size: 13.5px;
+            user-select: none;
+        }
+        .nav-item:hover { color: var(--text-1); background: rgba(255,255,255,0.04); }
+        .nav-item.active { color: var(--accent); background: var(--accent-m); border-left-color: var(--accent); font-weight: 500; }
+        .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.8; }
+        .nav-item.active svg { opacity: 1; }
+        .nav-badge {
+            margin-left: auto;
+            background: var(--bg-3);
+            color: var(--text-2);
+            font-size: 10px;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 8px;
+            min-width: 20px;
+            text-align: center;
+        }
+        .nav-item.active .nav-badge { background: var(--accent-em); color: #fff; }
+
+        /* Sidebar footer / user */
+        .sidebar-footer {
+            border-top: 1px solid var(--border);
+            padding: 14px 20px;
+        }
+        .user-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .user-avatar {
+            width: 30px; height: 30px;
+            background: var(--accent-em);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; color: #fff;
+            flex-shrink: 0;
+        }
+        .user-name { font-size: 13px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btn-logout {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-2);
+            font-size: 12.5px;
+            cursor: pointer;
+            transition: all var(--tr);
+        }
+        .btn-logout:hover { border-color: var(--err); color: var(--err); background: var(--err-m); }
+        .btn-logout svg { width: 13px; height: 13px; }
+
+        /* ===== MAIN ===== */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        .topbar {
+            padding: 14px 28px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .topbar h2 { font-size: 18px; font-weight: 600; }
+        .topbar-right { display: flex; gap: 8px; align-items: center; }
+        .content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+        /* ===== DASHBOARD ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--accent);
+        }
+        .stat-card.ok::before { background: var(--ok); }
+        .stat-card.warn::before { background: var(--warn); }
+        .stat-card.err::before { background: var(--err); }
+        .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); margin-bottom: 10px; }
+        .stat-value { font-size: 26px; font-weight: 700; line-height: 1; }
+        .stat-value small { font-size: 14px; color: var(--text-2); font-weight: 400; margin-left: 2px; }
+        .stat-sub { font-size: 11px; color: var(--text-3); margin-top: 6px; }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,0.01);
+        }
+        .card-title { font-size: 14px; font-weight: 600; }
+        .card-desc { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+        .card-body { padding: 20px; }
+        .card-body + .card-body { border-top: 1px solid var(--border-s); }
+
+        /* ===== FEATURE OVERVIEW TABLE ===== */
+        .feat-table { width: 100%; }
+        .feat-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-s);
+            gap: 12px;
+        }
+        .feat-row:last-child { border-bottom: none; }
+        .feat-info { flex: 1; min-width: 0; }
+        .feat-name { font-size: 13px; font-weight: 500; }
+        .feat-desc { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+
+        /* ===== TOGGLE ===== */
+        .toggle {
+            width: 42px; height: 22px;
+            background: var(--bg-3);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            position: relative;
+            cursor: pointer;
+            transition: all var(--tr);
+            flex-shrink: 0;
+        }
+        .toggle.on { background: var(--ok); border-color: var(--ok); }
+        .toggle::after {
+            content: '';
+            width: 16px; height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px; left: 2px;
+            transition: transform var(--tr);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .toggle.on::after { transform: translateX(20px); }
+
+        /* ===== BADGES ===== */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .badge-s { background: var(--ok-m); color: var(--ok); }
+        .badge-d { background: var(--err-m); color: var(--err); }
+        .badge-w { background: var(--warn-m); color: var(--warn); }
+        .badge-i { background: var(--accent-m); color: var(--accent); }
+        .badge-n { background: var(--bg-3); color: var(--text-2); }
+
+        /* ===== FORMS ===== */
+        .fg { margin-bottom: 16px; }
+        .fg:last-child { margin-bottom: 0; }
+        .fl { display: block; font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+        .fi {
+            width: 100%;
+            padding: 9px 12px;
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-1);
+            font-size: 13.5px;
+            transition: border-color var(--tr);
+            outline: none;
+        }
+        .fi:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-m); }
+        .fi::placeholder { color: var(--text-3); }
+        .fi-mono { font-family: 'SF Mono','Cascadia Code','Fira Code', monospace; }
+        .fh { font-size: 12px; color: var(--text-3); margin-top: 5px; }
+        .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 18px;
+            border-radius: 6px;
+            font-size: 13.5px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all var(--tr);
+            user-select: none;
+            white-space: nowrap;
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-p { background: var(--accent-em); color: #fff; }
+        .btn-p:hover:not(:disabled) { background: #388bfd; }
+        .btn-s { background: var(--bg-2); color: var(--text-1); border-color: var(--border); }
+        .btn-s:hover:not(:disabled) { background: var(--bg-3); }
+        .btn-d { background: transparent; color: var(--err); border-color: transparent; }
+        .btn-d:hover:not(:disabled) { background: var(--err-m); }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn-xs { padding: 3px 8px; font-size: 11px; }
+
+        /* ===== LOGIN OVERLAY ===== */
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-canvas);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .login-card {
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 36px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .login-logo { text-align: center; margin-bottom: 20px; }
+        .login-card h2 { font-size: 22px; font-weight: 600; text-align: center; margin-bottom: 6px; }
+        .login-card p { font-size: 13px; color: var(--text-2); text-align: center; margin-bottom: 28px; }
+        .login-btn { width: 100%; justify-content: center; padding: 11px; font-size: 14px; }
+        .login-error { background: var(--err-m); color: var(--err); border: 1px solid rgba(248,81,73,0.3); border-radius: 6px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; text-align: center; }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 11px 18px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 500;
+            z-index: 200;
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.28s cubic-bezier(0.23,1,0.32,1);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            max-width: 340px;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-success { background: #1a3a21; color: var(--ok); border: 1px solid rgba(63,185,80,0.3); }
+        .toast-error { background: #3a1a1a; color: var(--err); border: 1px solid rgba(248,81,73,0.3); }
+
+        /* ===== ALERT ===== */
+        .alert {
+            padding: 11px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .alert-w { background: var(--warn-m); color: var(--warn); border: 1px solid rgba(210,153,34,0.25); }
+        .alert-i { background: var(--accent-m); color: var(--accent); border: 1px solid rgba(56,139,253,0.25); }
+        .alert code { background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; font-size: 11.5px; font-family: monospace; }
+
+        /* ===== LISTS TAB ===== */
+        .list-tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 16px;
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px;
+        }
+        .list-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--text-2);
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all var(--tr);
+            user-select: none;
+            flex: 1;
+            justify-content: center;
+        }
+        .list-tab:hover { color: var(--text-1); background: var(--bg-2); }
+        .list-tab.active { color: var(--text-1); background: var(--bg-3); font-weight: 600; }
+        .list-tab .lt-count {
+            font-size: 10.5px;
+            background: var(--bg-canvas);
+            border-radius: 8px;
+            padding: 1px 5px;
+            font-weight: 700;
+        }
+        .list-tab.active .lt-count { background: var(--accent-em); color: #fff; }
+
+        /* Domain input row */
+        .input-row { display: flex; gap: 8px; align-items: flex-start; }
+        .input-row .fi { flex: 1; }
+
+        /* Domain list */
+        .domain-list { max-height: 260px; overflow-y: auto; }
+        .domain-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border-s);
+            font-size: 12.5px;
+            font-family: 'SF Mono','Cascadia Code','Fira Code', monospace;
+            gap: 12px;
+        }
+        .domain-item:last-child { border-bottom: none; }
+        .domain-item:hover { background: var(--bg-2); }
+        .domain-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; word-break: break-all; }
+        .domain-remove {
+            background: none;
+            border: none;
+            color: var(--text-3);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            transition: all var(--tr);
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .domain-remove:hover { color: var(--err); background: var(--err-m); }
+        .list-empty {
+            padding: 32px 20px;
+            text-align: center;
+            color: var(--text-3);
+            font-size: 13px;
+        }
+        .list-empty-icon { font-size: 28px; margin-bottom: 8px; opacity: 0.5; }
+
+        /* Redirect row */
+        .redir-row { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; align-items: center; }
+        .redir-arrow { color: var(--text-3); font-size: 18px; text-align: center; }
+
+        /* Section header inside card */
+        .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-3);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border-s); }
+
+        /* Source info */
+        .source-info { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .source-path { font-family: monospace; font-size: 12px; color: var(--text-2); background: var(--bg-2); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-s); overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+        /* Upstream info */
+        .upstream-table { width: 100%; border-collapse: collapse; }
+        .upstream-table tr td { padding: 8px 0; font-size: 13px; border-bottom: 1px solid var(--border-s); vertical-align: top; }
+        .upstream-table tr:last-child td { border-bottom: none; }
+        .upstream-table td:first-child { color: var(--text-3); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; width: 160px; padding-right: 16px; padding-top: 10px; }
+        .upstream-table td:last-child { font-family: 'SF Mono','Cascadia Code','Fira Code', monospace; color: var(--accent); word-break: break-all; }
+
         /* Scrollbar */
-        ::-webkit-scrollbar { width:8px; } ::-webkit-scrollbar-track { background:transparent; }
-        ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; } ::-webkit-scrollbar-thumb:hover { background:var(--text-3); }
-        @media (max-width:768px) { .sidebar { width:200px; } .content { padding:20px; } .stats { grid-template-columns:1fr 1fr; } .frow { grid-template-columns:1fr; } }
-        @media (max-width:600px) { .sidebar { display:none; } .stats { grid-template-columns:1fr; } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+        /* Divider */
+        .divider { height: 1px; background: var(--border-s); margin: 16px 0; }
+
+        /* No KV code block */
+        .kv-code { background: var(--bg-2); border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 12.5px; color: var(--text-2); line-height: 1.8; border: 1px solid var(--border); margin-top: 16px; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { width: 200px; }
+            .content { padding: 16px; }
+            .frow { grid-template-columns: 1fr; }
+            .redir-row { grid-template-columns: 1fr; }
+            .redir-arrow { display: none; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 600px) {
+            .sidebar { display: none; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .list-tabs { flex-wrap: wrap; }
+        }
     </style>
 </head>
 <body>
 <div id="app" v-cloak>
-    <!-- Setup (first-time registration) -->
+
+    <!-- SETUP (first run) -->
     <div v-if="appState==='setup'" class="login-overlay">
         <div class="login-card">
-            <div style="text-align:center;margin-bottom:16px">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            <div class="login-logo">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
             </div>
             <h2>Create Admin Account</h2>
             <p>First account becomes the administrator</p>
             <div v-if="authError" class="login-error">{{ authError }}</div>
-            <div class="fg"><label class="fl">Username</label><input class="fi" style="font-family:inherit" v-model="regUser" placeholder="admin" autofocus></div>
-            <div class="fg"><label class="fl">Password</label><input type="password" class="fi" style="font-family:inherit" v-model="regPass" placeholder="Min 6 characters"></div>
-            <div class="fg"><label class="fl">Confirm Password</label><input type="password" class="fi" style="font-family:inherit" v-model="regPass2" placeholder="Confirm password" @keyup.enter="register"></div>
+            <div class="fg"><label class="fl">Username</label><input class="fi" v-model="regUser" placeholder="admin" autofocus @keyup.enter="register"></div>
+            <div class="fg"><label class="fl">Password</label><input type="password" class="fi" v-model="regPass" placeholder="Min 6 characters" @keyup.enter="register"></div>
+            <div class="fg"><label class="fl">Confirm Password</label><input type="password" class="fi" v-model="regPass2" placeholder="Confirm password" @keyup.enter="register"></div>
             <button @click="register" class="btn btn-p login-btn">Create Account</button>
         </div>
     </div>
 
-    <!-- Login -->
+    <!-- LOGIN -->
     <div v-if="appState==='login'" class="login-overlay">
         <div class="login-card">
-            <div style="text-align:center;margin-bottom:16px">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            <div class="login-logo">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 014-10z"/></svg>
             </div>
             <h2>DNS Gateway Admin</h2>
             <p>Sign in to manage your DNS gateway</p>
             <div v-if="authError" class="login-error">{{ authError }}</div>
-            <div class="fg"><label class="fl">Username</label><input class="fi" style="font-family:inherit" v-model="loginUser" placeholder="Username" autofocus></div>
-            <div class="fg"><label class="fl">Password</label><input type="password" class="fi" style="font-family:inherit" v-model="loginPass" placeholder="Password" @keyup.enter="login"></div>
+            <div class="fg"><label class="fl">Username</label><input class="fi" v-model="loginUser" placeholder="Username" autofocus @keyup.enter="login"></div>
+            <div class="fg"><label class="fl">Password</label><input type="password" class="fi" v-model="loginPass" placeholder="Password" @keyup.enter="login"></div>
             <button @click="login" class="btn btn-p login-btn">Sign In</button>
         </div>
     </div>
 
-    <!-- No KV -->
+    <!-- NO KV -->
     <div v-if="appState==='no-kv'" class="login-overlay">
         <div class="login-card">
-            <h2 style="margin-bottom:16px">⚠️ Setup Required</h2>
-            <p style="margin-bottom:24px">Bind a KV namespace as <code>DNS_GATEWAY_KV</code> in your <code>wrangler.toml</code> or Cloudflare Dashboard to enable the admin panel.</p>
-            <div style="background:var(--bg-2);border-radius:8px;padding:16px;font-family:monospace;font-size:13px;color:var(--text-2)">
+            <h2 style="margin-bottom:12px">⚠️ KV Setup Required</h2>
+            <p style="margin-bottom:0">Bind a KV namespace as <code>DNS_GATEWAY_KV</code> in your <code>wrangler.toml</code> or Cloudflare Dashboard.</p>
+            <div class="kv-code">
                 [[kv_namespaces]]<br>
                 binding = "DNS_GATEWAY_KV"<br>
                 id = "your-namespace-id"
@@ -168,171 +536,448 @@
         </div>
     </div>
 
-    <!-- Loading -->
-    <div v-if="appState==='loading'" class="login-overlay"><div style="color:var(--text-2)">Loading...</div></div>
+    <!-- LOADING -->
+    <div v-if="appState==='loading'" class="login-overlay">
+        <div style="color:var(--text-2);font-size:14px">Loading...</div>
+    </div>
 
-    <!-- Main App -->
+    <!-- MAIN APP -->
     <div v-if="appState==='admin'" class="app">
+
+        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-brand">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke="var(--accent)"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-                <span>DNS Gateway</span>
+                <svg class="sidebar-brand-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+                </svg>
+                <div>
+                    <div class="sidebar-brand-text">DNS Gateway</div>
+                    <div class="sidebar-brand-sub">Edge Admin</div>
+                </div>
             </div>
+
             <nav class="sidebar-nav">
-                <div class="nav-item" :class="{active:tab==='dashboard'}" @click="tab='dashboard'">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+                <div class="nav-section">Navigation</div>
+
+                <div class="nav-item" :class="{active: tab==='dashboard'}" @click="tab='dashboard'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    Dashboard
                 </div>
-                <div class="nav-item" :class="{active:tab==='features'}" @click="tab='features'">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Features
+
+                <div class="nav-section">Settings</div>
+
+                <div class="nav-item" :class="{active: tab==='features'}" @click="tab='features'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    Features
+                    <span class="nav-badge">{{ activeFeatureCount }}/{{ features.length }}</span>
                 </div>
-                <div class="nav-item" :class="{active:tab==='upstreams'}" @click="tab='upstreams'">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>Upstreams
+
+                <div class="nav-item" :class="{active: tab==='filters'}" @click="tab='filters'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2V12.46L22 3z"/></svg>
+                    Query Filters
+                    <span class="nav-badge">{{ activeFilterCount }}/{{ filters.length }}</span>
                 </div>
-                <div class="nav-item" :class="{active:tab==='filters'}" @click="tab='filters'">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Query Filters
+
+                <div class="nav-item" :class="{active: tab==='upstreams'}" @click="tab='upstreams'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>
+                    Upstreams
                 </div>
-                <div class="nav-item" :class="{active:tab==='lists'}" @click="tab='lists'; loadLists()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Lists
+
+                <div class="nav-section">Data</div>
+
+                <div class="nav-item" :class="{active: tab==='lists'}" @click="switchToLists()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Lists
+                    <span class="nav-badge">{{ totalCustomEntries }}</span>
                 </div>
             </nav>
-            <div class="sidebar-footer">Serverless Edge DNS Gateway<br>Cloudflare Pages</div>
+
+            <div class="sidebar-footer">
+                <div v-if="adminUsername" class="user-row">
+                    <div class="user-avatar">{{ adminUsername.charAt(0).toUpperCase() }}</div>
+                    <div class="user-name">{{ adminUsername }}</div>
+                </div>
+                <button class="btn-logout" @click="logout">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Sign Out
+                </button>
+            </div>
         </aside>
+
+        <!-- Main content -->
         <div class="main">
             <header class="topbar">
                 <h2>{{ tabLabels[tab] }}</h2>
-                <div class="topbar-badges">
-                    <span v-if="stats.hasKV" class="badge badge-s">KV Connected</span>
-                    <span v-else class="badge badge-w">No KV</span>
-                    <span v-if="adminUsername" class="badge badge-i">{{ adminUsername }}</span>
+                <div class="topbar-right">
+                    <span v-if="stats.hasKV" class="badge badge-s">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="12"/></svg>
+                        KV Connected
+                    </span>
+                    <span v-else class="badge badge-w">⚠ No KV</span>
                 </div>
             </header>
+
             <div class="content">
-                <!-- DASHBOARD -->
+
+                <!-- ======= DASHBOARD ======= -->
                 <div v-if="tab==='dashboard'">
-                    <div v-if="!stats.hasKV" class="alert alert-i">ℹ️ No KV binding. Bind <code>DNS_GATEWAY_KV</code> for persistent config and custom domain lists.</div>
-                    <div class="stats">
-                        <div class="stat"><div class="stat-label">Active Features</div><div class="stat-value">{{activeCount}}<span style="font-size:16px;color:var(--text-2)">/{{totalCount}}</span></div></div>
-                        <div class="stat s"><div class="stat-label">Blocklist</div><div class="stat-value">{{fmt(stats.blocklistSize)}}</div></div>
-                        <div class="stat w"><div class="stat-label">Redirect Rules</div><div class="stat-value">{{stats.redirectRulesSize||0}}</div></div>
-                        <div class="stat"><div class="stat-label">Last Refresh</div><div class="stat-value" style="font-size:16px">{{stats.lastFetch==='never'?'Never':timeAgo(stats.lastFetch)}}</div></div>
+                    <div v-if="!stats.hasKV" class="alert alert-i">
+                        ℹ️ No KV binding detected. Bind <code>DNS_GATEWAY_KV</code> for persistent config and custom domain lists.
                     </div>
-                    <div class="card"><div class="card-head"><span class="card-title">Feature Overview</span></div>
-                        <div class="feat-grid"><div v-for="f in allFeatures" :key="f.key" class="feat-item"><span class="feat-name">{{f.label}}</span><span class="badge" :class="config[f.key]?'badge-s':'badge-d'">{{config[f.key]?'ON':'OFF'}}</span></div></div>
+
+                    <!-- Stats row -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Active Features</div>
+                            <div class="stat-value">{{ activeFeatureCount }}<small>/{{ features.length }}</small></div>
+                            <div class="stat-sub">Core capabilities</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Active Filters</div>
+                            <div class="stat-value">{{ activeFilterCount }}<small>/{{ filters.length }}</small></div>
+                            <div class="stat-sub">Query type filters</div>
+                        </div>
+                        <div class="stat-card ok">
+                            <div class="stat-label">Blocklist</div>
+                            <div class="stat-value">{{ fmt(stats.blocklistSize) }}</div>
+                            <div class="stat-sub">Blocked domains (merged)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Allowlist</div>
+                            <div class="stat-value">{{ fmt(stats.allowlistSize) }}</div>
+                            <div class="stat-sub">Allowed domains (merged)</div>
+                        </div>
+                        <div class="stat-card warn">
+                            <div class="stat-label">Redirect Rules</div>
+                            <div class="stat-value">{{ stats.redirectRulesSize || 0 }}</div>
+                            <div class="stat-sub">CNAME overrides</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Last Refresh</div>
+                            <div class="stat-value" style="font-size:18px;margin-top:4px">{{ stats.lastFetch==='never' ? 'Never' : timeAgo(stats.lastFetch) }}</div>
+                            <div class="stat-sub">List cache age</div>
+                        </div>
                     </div>
-                    <div class="card"><div class="card-head"><span class="card-title">DNS Upstreams</span></div>
-                        <div class="upstream-info"><div><span>Primary:</span> {{config.UPSTREAM_PRIMARY}}</div><div><span>Fallback:</span> {{config.UPSTREAM_FALLBACK}}</div><div><span>Geo-Bypass:</span> {{config.UPSTREAM_GEO_BYPASS}}</div></div>
+
+                    <!-- Feature status table -->
+                    <div class="card">
+                        <div class="card-head">
+                            <div>
+                                <div class="card-title">Feature Status</div>
+                                <div class="card-desc">All toggleable features and filters at a glance</div>
+                            </div>
+                            <span class="badge badge-i">{{ activeCount }}/{{ totalCount }} active</span>
+                        </div>
+                        <div class="feat-table">
+                            <div v-for="f in allFeatures" :key="f.key" class="feat-row">
+                                <div class="feat-info">
+                                    <div class="feat-name">{{ f.label }}</div>
+                                    <div class="feat-desc">{{ f.desc }}</div>
+                                </div>
+                                <span class="badge" :class="config[f.key] ? 'badge-s' : 'badge-n'">
+                                    {{ config[f.key] ? '● ON' : '○ OFF' }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card"><div class="card-head"><span class="card-title">List Stats</span></div>
-                        <div class="feat-grid">
-                            <div class="feat-item"><span class="feat-name">Allowlist</span><span class="badge badge-i">{{stats.allowlistSize||0}}</span></div>
-                            <div class="feat-item"><span class="feat-name">Private TLDs</span><span class="badge badge-i">{{stats.privateTldsSize||0}}</span></div>
-                            <div class="feat-item"><span class="feat-name">Mullvad Domains</span><span class="badge badge-i">{{stats.mullvadDomainsSize||0}}</span></div>
+
+                    <!-- Upstream summary -->
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">DNS Upstreams</div>
+                        </div>
+                        <div class="card-body">
+                            <table class="upstream-table">
+                                <tr><td>Primary</td><td>{{ config.UPSTREAM_PRIMARY || '—' }}</td></tr>
+                                <tr><td>Fallback</td><td>{{ config.UPSTREAM_FALLBACK || '—' }}</td></tr>
+                                <tr><td>Geo-Bypass</td><td>{{ config.UPSTREAM_GEO_BYPASS || '—' }}</td></tr>
+                                <tr><td>Timeout</td><td>{{ config.UPSTREAM_TIMEOUT }}ms</td></tr>
+                                <tr><td>Refresh Interval</td><td>{{ Math.round((config.ALL_LISTS_REFRESH_INTERVAL||3600000)/60000) }} min</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- List sizes -->
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">List Sizes (merged in-memory)</div>
+                        </div>
+                        <div class="card-body" style="display:flex;flex-wrap:wrap;gap:8px">
+                            <span class="badge badge-d">Blocklist: {{ fmt(stats.blocklistSize) }}</span>
+                            <span class="badge badge-s">Allowlist: {{ fmt(stats.allowlistSize) }}</span>
+                            <span class="badge badge-i">Private TLDs: {{ fmt(stats.privateTldsSize) }}</span>
+                            <span class="badge badge-w">Redirect Rules: {{ stats.redirectRulesSize || 0 }}</span>
+                            <span class="badge badge-n">Mullvad Domains: {{ stats.mullvadDomainsSize || 0 }}</span>
                         </div>
                     </div>
                 </div>
-                <!-- FEATURES -->
+
+                <!-- ======= FEATURES ======= -->
                 <div v-if="tab==='features'">
-                    <div class="card"><div class="card-head"><span class="card-title">Core Features</span><span class="badge badge-i">{{activeCount}} active</span></div>
-                        <div v-for="f in features" :key="f.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{f.label}}</div><div class="toggle-desc">{{f.desc}}</div></div><div class="toggle" :class="{on:config[f.key]}" @click="toggleFeature(f.key)"></div></div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div>
+                                <div class="card-title">Core Features</div>
+                                <div class="card-desc">Enable or disable major DNS gateway capabilities</div>
+                            </div>
+                            <span class="badge badge-i">{{ activeFeatureCount }} active</span>
+                        </div>
+                        <div class="feat-table">
+                            <div v-for="f in features" :key="f.key" class="feat-row">
+                                <div class="feat-info">
+                                    <div class="feat-name">{{ f.label }}</div>
+                                    <div class="feat-desc">{{ f.desc }}</div>
+                                </div>
+                                <div class="toggle" :class="{on: config[f.key]}" @click="toggleFeature(f.key)"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <!-- UPSTREAMS -->
-                <div v-if="tab==='upstreams'">
-                    <div class="card"><div class="card-head"><span class="card-title">DNS Upstream Servers</span></div>
-                        <div class="fg"><label class="fl">Primary Upstream</label><input class="fi" v-model="config.UPSTREAM_PRIMARY"><div class="fh">Main DNS-over-HTTPS resolver</div></div>
-                        <div class="fg"><label class="fl">Fallback Upstream</label><input class="fi" v-model="config.UPSTREAM_FALLBACK"><div class="fh">Used when primary fails</div></div>
-                        <div class="fg"><label class="fl">Geo-Bypass Upstream</label><input class="fi" v-model="config.UPSTREAM_GEO_BYPASS"><div class="fh">Re-resolve without ECS for geo-blocked domains</div></div>
-                        <div class="frow"><div class="fg"><label class="fl">Timeout (ms)</label><input class="fi" type="number" v-model.number="config.UPSTREAM_TIMEOUT"></div>
-                            <div class="fg"><label class="fl">List Refresh Interval (ms)</label><input class="fi" type="number" v-model.number="config.ALL_LISTS_REFRESH_INTERVAL"><div class="fh">{{Math.round((config.ALL_LISTS_REFRESH_INTERVAL||3600000)/60000)}} min</div></div></div>
-                    </div>
-                    <div class="card"><div class="card-head"><span class="card-title">ECS (EDNS Client Subnet)</span></div>
-                        <div class="frow"><div class="fg"><label class="fl">IPv4 Prefix</label><input class="fi" type="number" v-model.number="config.ECS_PREFIX_V4" min="1" max="32"><div class="fh">/{{config.ECS_PREFIX_V4||24}} mask</div></div>
-                            <div class="fg"><label class="fl">IPv6 Prefix</label><input class="fi" type="number" v-model.number="config.ECS_PREFIX_V6" min="1" max="128"><div class="fh">/{{config.ECS_PREFIX_V6||48}} mask</div></div></div>
-                    </div>
-                    <button @click="saveUpstreams" class="btn btn-p">💾 Save Upstream Settings</button>
-                </div>
-                <!-- FILTERS -->
+
+                <!-- ======= QUERY FILTERS ======= -->
                 <div v-if="tab==='filters'">
-                    <div class="card"><div class="card-head"><span class="card-title">Blocked Query Types</span></div>
-                        <p style="margin-bottom:16px;font-size:13px;color:var(--text-2)">Block specific DNS query types at the edge</p>
-                        <div v-for="f in filters" :key="f.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{f.label}}</div><div class="toggle-desc">{{f.desc}}</div></div><div class="toggle" :class="{on:config[f.key]}" @click="toggleFeature(f.key)"></div></div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div>
+                                <div class="card-title">Blocked Query Types</div>
+                                <div class="card-desc">Block specific DNS record types at the edge before upstream forwarding</div>
+                            </div>
+                            <span class="badge badge-i">{{ activeFilterCount }}/{{ filters.length }} active</span>
+                        </div>
+                        <div class="feat-table">
+                            <div v-for="f in filters" :key="f.key" class="feat-row">
+                                <div class="feat-info">
+                                    <div class="feat-name">{{ f.label }}</div>
+                                    <div class="feat-desc">{{ f.desc }}</div>
+                                </div>
+                                <div class="toggle" :class="{on: config[f.key]}" @click="toggleFeature(f.key)"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <!-- LISTS -->
+
+                <!-- ======= UPSTREAMS ======= -->
+                <div v-if="tab==='upstreams'">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">DNS Upstream Servers</div>
+                        </div>
+                        <div class="card-body">
+                            <div class="fg"><label class="fl">Primary Upstream</label><input class="fi fi-mono" v-model="config.UPSTREAM_PRIMARY"><div class="fh">Main DNS-over-HTTPS resolver (DoH)</div></div>
+                            <div class="fg"><label class="fl">Fallback Upstream</label><input class="fi fi-mono" v-model="config.UPSTREAM_FALLBACK"><div class="fh">Used when primary times out or fails</div></div>
+                            <div class="fg"><label class="fl">Geo-Bypass Upstream</label><input class="fi fi-mono" v-model="config.UPSTREAM_GEO_BYPASS"><div class="fh">Re-resolve without ECS for geo-blocked domains returning loopback</div></div>
+                            <div class="frow">
+                                <div class="fg">
+                                    <label class="fl">Timeout (ms)</label>
+                                    <input class="fi" type="number" v-model.number="config.UPSTREAM_TIMEOUT">
+                                </div>
+                                <div class="fg">
+                                    <label class="fl">List Refresh Interval (ms)</label>
+                                    <input class="fi" type="number" v-model.number="config.ALL_LISTS_REFRESH_INTERVAL">
+                                    <div class="fh">= {{ Math.round((config.ALL_LISTS_REFRESH_INTERVAL||3600000)/60000) }} minutes</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">ECS (EDNS Client Subnet)</div>
+                        </div>
+                        <div class="card-body">
+                            <div class="frow">
+                                <div class="fg">
+                                    <label class="fl">IPv4 Prefix Length</label>
+                                    <input class="fi" type="number" v-model.number="config.ECS_PREFIX_V4" min="1" max="32">
+                                    <div class="fh">/{{ config.ECS_PREFIX_V4 || 24 }} mask sent to upstream</div>
+                                </div>
+                                <div class="fg">
+                                    <label class="fl">IPv6 Prefix Length</label>
+                                    <input class="fi" type="number" v-model.number="config.ECS_PREFIX_V6" min="1" max="128">
+                                    <div class="fh">/{{ config.ECS_PREFIX_V6 || 48 }} mask sent to upstream</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button @click="saveUpstreams" class="btn btn-p">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Save Upstream Settings
+                    </button>
+                </div>
+
+                <!-- ======= LISTS ======= -->
                 <div v-if="tab==='lists'">
-                    <div v-if="!stats.hasKV" class="alert alert-w">⚠️ KV not configured — custom domain lists require <code>DNS_GATEWAY_KV</code> binding.</div>
-                    <div class="sub-tabs">
-                        <div class="sub-tab" :class="{active:listTab==='blocklist'}" @click="listTab='blocklist'">Blocklist <span class="badge badge-d" style="margin-left:4px">{{(lists.blocklist||[]).length}}</span></div>
-                        <div class="sub-tab" :class="{active:listTab==='allowlist'}" @click="listTab='allowlist'">Allowlist <span class="badge badge-s" style="margin-left:4px">{{(lists.allowlist||[]).length}}</span></div>
-                        <div class="sub-tab" :class="{active:listTab==='redirect_rules'}" @click="listTab='redirect_rules'">Redirect <span class="badge badge-i" style="margin-left:4px">{{(lists.redirect_rules||[]).length}}</span></div>
-                        <div class="sub-tab" :class="{active:listTab==='private_tlds'}" @click="listTab='private_tlds'">Private TLDs <span class="badge badge-i" style="margin-left:4px">{{(lists.private_tlds||[]).length}}</span></div>
-                        <div class="sub-tab" :class="{active:listTab==='mullvad_upstream'}" @click="listTab='mullvad_upstream'">Mullvad <span class="badge badge-i" style="margin-left:4px">{{(lists.mullvad_upstream||[]).length}}</span></div>
+                    <div v-if="!stats.hasKV" class="alert alert-w">
+                        ⚠️ KV not configured — custom domain lists require <code>DNS_GATEWAY_KV</code> binding. Changes won't persist.
                     </div>
-                    <!-- Redirect Rules (special: source → target) -->
-                    <div v-if="listTab==='redirect_rules'" class="card">
-                        <div class="card-head"><span class="card-title">Custom Redirect Rules</span></div>
-                        <div class="redir-row">
-                            <input class="fi" v-model="newRedirSource" placeholder="source.domain.com">
-                            <span class="redir-arrow">→</span>
-                            <input class="fi" v-model="newRedirTarget" placeholder="target.domain.com">
-                            <button class="btn btn-p btn-sm" @click="addRedirect" :disabled="!stats.hasKV">Add</button>
+
+                    <!-- Tab selector -->
+                    <div class="list-tabs">
+                        <div class="list-tab" :class="{active: listTab==='blocklist'}" @click="listTab='blocklist'">
+                            🚫 Blocklist
+                            <span class="lt-count">{{ (lists.blocklist||[]).length + (customUrls.blocklist||[]).length }}</span>
                         </div>
-                        <div class="domain-list">
-                            <div v-if="!(lists.redirect_rules||[]).length" class="list-empty">No custom redirect rules</div>
-                            <div v-for="r in (lists.redirect_rules||[])" :key="r.source" class="domain-item">
-                                <span>{{r.source}} <span style="color:var(--text-3)">→</span> {{r.target}}</span>
-                                <button class="domain-remove" @click="removeEntry('redirect_rules', r.source)">✕</button>
+                        <div class="list-tab" :class="{active: listTab==='allowlist'}" @click="listTab='allowlist'">
+                            ✅ Allowlist
+                            <span class="lt-count">{{ (lists.allowlist||[]).length + (customUrls.allowlist||[]).length }}</span>
+                        </div>
+                        <div class="list-tab" :class="{active: listTab==='redirect_rules'}" @click="listTab='redirect_rules'">
+                            ↪ Redirect
+                            <span class="lt-count">{{ (lists.redirect_rules||[]).length }}</span>
+                        </div>
+                        <div class="list-tab" :class="{active: listTab==='private_tlds'}" @click="listTab='private_tlds'">
+                            🔒 Private TLDs
+                            <span class="lt-count">{{ (lists.private_tlds||[]).length }}</span>
+                        </div>
+                        <div class="list-tab" :class="{active: listTab==='mullvad_upstream'}" @click="listTab='mullvad_upstream'">
+                            🌐 Mullvad
+                            <span class="lt-count">{{ (lists.mullvad_upstream||[]).length }}</span>
+                        </div>
+                    </div>
+
+                    <!-- REDIRECT RULES TAB -->
+                    <div v-if="listTab==='redirect_rules'">
+                        <div class="card">
+                            <div class="card-head">
+                                <div>
+                                    <div class="card-title">Custom Redirect Rules</div>
+                                    <div class="card-desc">DNS CNAME overrides — queries for source domain return a CNAME to target</div>
+                                </div>
+                                <span class="badge badge-i">{{ (lists.redirect_rules||[]).length }} rules</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="section-label">Add Rule</div>
+                                <div class="redir-row" style="margin-bottom:16px">
+                                    <input class="fi fi-mono" v-model="newRedirSource" placeholder="source.example.com" @keyup.enter="addRedirect" :disabled="!stats.hasKV">
+                                    <span class="redir-arrow">→</span>
+                                    <input class="fi fi-mono" v-model="newRedirTarget" placeholder="target.example.com" @keyup.enter="addRedirect" :disabled="!stats.hasKV">
+                                    <button class="btn btn-p btn-sm" @click="addRedirect" :disabled="!stats.hasKV">Add</button>
+                                </div>
+                                <div class="section-label">Rules ({{ (lists.redirect_rules||[]).length }})</div>
+                                <div class="domain-list">
+                                    <div v-if="!(lists.redirect_rules||[]).length" class="list-empty">
+                                        <div class="list-empty-icon">↪</div>
+                                        No redirect rules — add a source → target pair above
+                                    </div>
+                                    <div v-for="r in (lists.redirect_rules||[])" :key="r.source" class="domain-item">
+                                        <span class="domain-item-text">
+                                            <span style="color:var(--err)">{{ r.source }}</span>
+                                            <span style="color:var(--text-3);margin:0 8px">→</span>
+                                            <span style="color:var(--ok)">{{ r.target }}</span>
+                                        </span>
+                                        <button class="domain-remove" @click="removeEntry('redirect_rules', r.source)" title="Remove">✕</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Static source -->
+                        <div class="card">
+                            <div class="card-head"><div class="card-title">Static File Source</div></div>
+                            <div class="card-body">
+                                <div class="source-info">
+                                    <span class="source-path">{{ config.REDIRECT_RULES_URL }}</span>
+                                    <span class="badge badge-i">{{ stats.redirectRulesSize || 0 }} total (merged)</span>
+                                </div>
+                                <div class="fh" style="margin-top:10px">Static file + custom rules above are merged at runtime.</div>
                             </div>
                         </div>
                     </div>
-                    <!-- Domain lists (blocklist, allowlist, private_tlds, mullvad_upstream) -->
-                    <div v-else class="card">
-                        <div class="card-head"><span class="card-title">Custom {{listTabLabels[listTab]}} Domains</span></div>
-                        <div class="list-input-row">
-                            <input class="fi" v-model="newDomain" :placeholder="'Enter domain (e.g. ads.example.com)'" @keyup.enter="addDomain" :disabled="!stats.hasKV">
-                            <button class="btn btn-p btn-sm" @click="addDomain" :disabled="!stats.hasKV">Add</button>
-                        </div>
-                        <div class="domain-list">
-                            <div v-if="!(lists[listTab]||[]).length" class="list-empty">No custom entries — domains from static files are loaded automatically</div>
-                            <div v-for="d in (lists[listTab]||[])" :key="d" class="domain-item">
-                                <span>{{d}}</span>
-                                <button class="domain-remove" @click="removeEntry(listTab, d)">✕</button>
+
+                    <!-- DOMAIN LIST TABS (blocklist, allowlist, private_tlds, mullvad_upstream) -->
+                    <div v-else>
+                        <!-- Manual domain entry -->
+                        <div class="card">
+                            <div class="card-head">
+                                <div>
+                                    <div class="card-title">Custom {{ listTabLabels[listTab] }} Domains</div>
+                                    <div class="card-desc">Manually added domains — exact match only</div>
+                                </div>
+                                <span class="badge" :class="listTab==='allowlist'?'badge-s':'badge-d'">{{ (lists[listTab]||[]).length }} entries</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="section-label">Add Domain</div>
+                                <div class="input-row" style="margin-bottom:16px">
+                                    <input class="fi fi-mono" v-model="newDomain"
+                                        :placeholder="listTab==='allowlist' ? 'e.g. allowed.example.com' : 'e.g. ads.example.com'"
+                                        @keyup.enter="addDomain"
+                                        :disabled="!stats.hasKV">
+                                    <button class="btn btn-p btn-sm" @click="addDomain" :disabled="!stats.hasKV">Add</button>
+                                </div>
+                                <div class="section-label">Domain List ({{ (lists[listTab]||[]).length }})</div>
+                                <div class="domain-list">
+                                    <div v-if="!(lists[listTab]||[]).length" class="list-empty">
+                                        <div class="list-empty-icon">{{ listTab==='allowlist' ? '✅' : '🚫' }}</div>
+                                        No custom entries — domains from static file are loaded automatically
+                                    </div>
+                                    <div v-for="d in (lists[listTab]||[])" :key="d" class="domain-item">
+                                        <span class="domain-item-text">{{ d }}</span>
+                                        <button class="domain-remove" @click="removeEntry(listTab, d)" title="Remove">✕</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <!-- External URL subscriptions (blocklist/allowlist only) -->
-                    <div v-if="listTab==='blocklist' || listTab==='allowlist'" class="card">
-                        <div class="card-head"><span class="card-title">External {{listTabLabels[listTab]}} URLs</span><span class="badge badge-i">{{(customUrls[listTab]||[]).length}} subscriptions</span></div>
-                        <div class="fh" style="margin-bottom:12px">Add external list URLs (AdBlock, hosts file, plain domain formats supported). Domains are auto-cleaned using the same rules as <code>update_lists.sh</code>.</div>
-                        <div class="list-input-row">
-                            <input class="fi" style="font-family:inherit" v-model="newUrl" placeholder="https://example.com/blocklist.txt" @keyup.enter="addUrl" :disabled="!stats.hasKV">
-                            <button class="btn btn-p btn-sm" @click="addUrl" :disabled="!stats.hasKV">Add URL</button>
-                        </div>
-                        <div class="domain-list">
-                            <div v-if="!(customUrls[listTab]||[]).length" class="list-empty">No external URLs — add subscription URLs to auto-fetch and merge domains</div>
-                            <div v-for="u in (customUrls[listTab]||[])" :key="u" class="domain-item" style="font-family:inherit;font-size:13px">
-                                <span style="word-break:break-all">{{u}}</span>
-                                <button class="domain-remove" @click="removeUrl(listTab, u)">✕</button>
+
+                        <!-- External URL Subscriptions (blocklist/allowlist only) -->
+                        <div v-if="listTab==='blocklist' || listTab==='allowlist'" class="card">
+                            <div class="card-head">
+                                <div>
+                                    <div class="card-title">External {{ listTabLabels[listTab] }} URLs</div>
+                                    <div class="card-desc">Subscribe to remote blocklists — AdBlock, hosts file, and plain domain formats are supported</div>
+                                </div>
+                                <span class="badge badge-i">{{ (customUrls[listTab]||[]).length }} subscriptions</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="section-label">Add Subscription URL</div>
+                                <div class="input-row" style="margin-bottom:16px">
+                                    <input class="fi" v-model="newUrl"
+                                        placeholder="https://example.com/blocklist.txt"
+                                        @keyup.enter="addUrl"
+                                        :disabled="!stats.hasKV">
+                                    <button class="btn btn-p btn-sm" @click="addUrl" :disabled="!stats.hasKV">Add URL</button>
+                                </div>
+                                <div class="section-label">Subscriptions ({{ (customUrls[listTab]||[]).length }})</div>
+                                <div class="domain-list">
+                                    <div v-if="!(customUrls[listTab]||[]).length" class="list-empty">
+                                        <div class="list-empty-icon">🔗</div>
+                                        No external URLs — add subscription URLs to auto-fetch and merge domains
+                                    </div>
+                                    <div v-for="u in (customUrls[listTab]||[])" :key="u" class="domain-item">
+                                        <span class="domain-item-text" style="font-family:inherit;font-size:12.5px;color:var(--accent)">{{ u }}</span>
+                                        <button class="domain-remove" @click="removeUrl(listTab, u)" title="Remove">✕</button>
+                                    </div>
+                                </div>
+                                <div class="fh" style="margin-top:10px">Domains are auto-cleaned (AdBlock/hosts/plain formats). Fetched and merged on next list refresh.</div>
                             </div>
                         </div>
-                    </div>
-                    <div class="card" style="margin-top:8px">
-                        <div class="card-head"><span class="card-title">Static File Source</span></div>
-                        <div class="upstream-info">
-                            <div v-if="listTab==='blocklist'"><span>File:</span> {{config.BLOCKLIST_URL}} &nbsp; <span class="badge badge-i">{{fmt(stats.blocklistSize)}} entries (total merged)</span></div>
-                            <div v-if="listTab==='allowlist'"><span>File:</span> {{config.ALLOWLIST_URL}} &nbsp; <span class="badge badge-i">{{stats.allowlistSize||0}} entries (total merged)</span></div>
-                            <div v-if="listTab==='redirect_rules'"><span>File:</span> {{config.REDIRECT_RULES_URL}} &nbsp; <span class="badge badge-i">{{stats.redirectRulesSize||0}} entries</span></div>
-                            <div v-if="listTab==='private_tlds'"><span>File:</span> {{config.PRIVATE_TLD_URL}} &nbsp; <span class="badge badge-i">{{stats.privateTldsSize||0}} entries</span></div>
-                            <div v-if="listTab==='mullvad_upstream'"><span>File:</span> {{config.MULLVAD_UPSTREAM_URL}} &nbsp; <span class="badge badge-i">{{stats.mullvadDomainsSize||0}} entries</span></div>
+
+                        <!-- Static source info -->
+                        <div class="card">
+                            <div class="card-head"><div class="card-title">Static File Source</div></div>
+                            <div class="card-body">
+                                <div class="source-info">
+                                    <span class="source-path">{{ listTab==='blocklist' ? config.BLOCKLIST_URL : listTab==='allowlist' ? config.ALLOWLIST_URL : listTab==='private_tlds' ? config.PRIVATE_TLD_URL : config.MULLVAD_UPSTREAM_URL }}</span>
+                                    <span class="badge badge-i">
+                                        {{ listTab==='blocklist' ? fmt(stats.blocklistSize) : listTab==='allowlist' ? (stats.allowlistSize||0) : listTab==='private_tlds' ? (stats.privateTldsSize||0) : (stats.mullvadDomainsSize||0) }} total (merged)
+                                    </span>
+                                </div>
+                                <div class="fh" style="margin-top:10px">Static file + external URLs + custom domains above are all merged at runtime.</div>
+                            </div>
                         </div>
-                        <div class="fh" style="margin-top:12px">Built-in static file + external URLs + custom domains are all merged at runtime.</div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-    <div class="toast" :class="[toastMsg?'show':'', 'toast-'+toastType]">{{toastMsg}}</div>
-</div>
+
+            </div><!-- /content -->
+        </div><!-- /main -->
+    </div><!-- /app -->
+
+    <!-- Toast -->
+    <div class="toast" :class="[toastMsg ? 'show' : '', 'toast-' + toastType]">{{ toastMsg }}</div>
+
+</div><!-- /#app -->
+
 <script>
 const { createApp, ref, computed, onMounted } = Vue;
 createApp({
@@ -341,152 +986,276 @@ createApp({
         const tab = ref('dashboard');
         const token = ref(localStorage.getItem('dnsadm_token') || '');
         const adminUsername = ref('');
-        // Auth forms
+
+        // Auth
         const loginUser = ref(''); const loginPass = ref('');
         const regUser = ref(''); const regPass = ref(''); const regPass2 = ref('');
         const authError = ref('');
+
         // Data
-        const config = ref({}); const stats = ref({});
-        const lists = ref({}); const listTab = ref('blocklist');
-        const customUrls = ref({}); const newUrl = ref('');
-        const newDomain = ref(''); const newRedirSource = ref(''); const newRedirTarget = ref('');
+        const config = ref({});
+        const stats = ref({});
+        const lists = ref({});
+        const listTab = ref('blocklist');
+        const customUrls = ref({});
+        const newUrl = ref('');
+        const newDomain = ref('');
+        const newRedirSource = ref('');
+        const newRedirTarget = ref('');
+
         // Toast
         const toastMsg = ref(''); const toastType = ref('success');
-        const showToast = (m, t='success') => { toastMsg.value=m; toastType.value=t; setTimeout(()=>toastMsg.value='',3000); };
-        const fmt = n => n ? n.toLocaleString() : '0';
-        const timeAgo = iso => { const d=Date.now()-new Date(iso).getTime(); if(d<60000)return'Just now'; if(d<3600000)return Math.floor(d/60000)+'m ago'; if(d<86400000)return Math.floor(d/3600000)+'h ago'; return Math.floor(d/86400000)+'d ago'; };
+        const showToast = (m, t = 'success') => {
+            toastMsg.value = m; toastType.value = t;
+            setTimeout(() => toastMsg.value = '', 3200);
+        };
 
-        const tabLabels = { dashboard:'Dashboard', features:'Features', upstreams:'Upstreams', filters:'Query Filters', lists:'Lists Management' };
-        const listTabLabels = { blocklist:'Blocklist', allowlist:'Allowlist', private_tlds:'Private TLD', mullvad_upstream:'Mullvad Upstream' };
+        const fmt = n => n ? Number(n).toLocaleString() : '0';
+        const timeAgo = iso => {
+            const d = Date.now() - new Date(iso).getTime();
+            if (d < 60000) return 'Just now';
+            if (d < 3600000) return Math.floor(d / 60000) + 'm ago';
+            if (d < 86400000) return Math.floor(d / 3600000) + 'h ago';
+            return Math.floor(d / 86400000) + 'd ago';
+        };
+
+        const tabLabels = {
+            dashboard: 'Dashboard',
+            features: 'Features',
+            filters: 'Query Filters',
+            upstreams: 'Upstreams',
+            lists: 'Lists Management'
+        };
+        const listTabLabels = {
+            blocklist: 'Blocklist',
+            allowlist: 'Allowlist',
+            private_tlds: 'Private TLD',
+            mullvad_upstream: 'Mullvad Upstream'
+        };
+
         const features = [
-            { key:'AD_BLOCK_ENABLED', label:'Ad & Tracker Blocking', desc:'Block ads/trackers using community-maintained blocklists' },
-            { key:'ECS_INJECTION_ENABLED', label:'ECS Injection', desc:'Inject EDNS Client Subnet for CDN geo-optimization' },
-            { key:'BLOCK_PRIVATE_TLD', label:'Block Private TLDs', desc:'Block internal domains (.local, .internal, routers)' },
-            { key:'DNS_REDIRECT_ENABLED', label:'DNS Redirect', desc:'Redirect domains to custom CNAME targets' },
-            { key:'MULLVAD_UPSTREAM_ENABLED', label:'Mullvad Upstream', desc:'Route specific domains through Mullvad DNS' },
-            { key:'DEBUG_ENABLED', label:'Debug Endpoint', desc:'Enable /debug diagnostics endpoint' },
+            { key: 'AD_BLOCK_ENABLED', label: 'Ad & Tracker Blocking', desc: 'Block ads/trackers using community-maintained blocklists' },
+            { key: 'ECS_INJECTION_ENABLED', label: 'ECS Injection', desc: 'Inject EDNS Client Subnet for CDN geo-optimization' },
+            { key: 'BLOCK_PRIVATE_TLD', label: 'Block Private TLDs', desc: 'Block internal domains (.local, .internal, routers)' },
+            { key: 'DNS_REDIRECT_ENABLED', label: 'DNS Redirect', desc: 'Redirect domains to custom CNAME targets' },
+            { key: 'MULLVAD_UPSTREAM_ENABLED', label: 'Mullvad Upstream', desc: 'Route specific domains through Mullvad DNS' },
+            { key: 'DEBUG_ENABLED', label: 'Debug Endpoint', desc: 'Enable /debug diagnostics endpoint' },
         ];
         const filters = [
-            { key:'BLOCK_ANY', label:'Block ANY (TYPE 255)', desc:'Block ANY queries — DNS amplification attack vector' },
-            { key:'BLOCK_AAAA', label:'Block AAAA (TYPE 28)', desc:'Block IPv6 address queries' },
-            { key:'BLOCK_PTR', label:'Block PTR (TYPE 12)', desc:'Block reverse DNS lookups' },
-            { key:'BLOCK_HTTPS', label:'Block HTTPS (TYPE 65)', desc:'Block HTTPS/SVCB record queries' },
+            { key: 'BLOCK_ANY', label: 'Block ANY (TYPE 255)', desc: 'Block ANY queries — DNS amplification attack vector' },
+            { key: 'BLOCK_AAAA', label: 'Block AAAA (TYPE 28)', desc: 'Block IPv6 address queries' },
+            { key: 'BLOCK_PTR', label: 'Block PTR (TYPE 12)', desc: 'Block reverse DNS lookups' },
+            { key: 'BLOCK_HTTPS', label: 'Block HTTPS (TYPE 65)', desc: 'Block HTTPS/SVCB record queries' },
         ];
+
         const allFeatures = computed(() => [...features, ...filters]);
+        const activeFeatureCount = computed(() => features.filter(f => config.value[f.key]).length);
+        const activeFilterCount = computed(() => filters.filter(f => config.value[f.key]).length);
         const activeCount = computed(() => allFeatures.value.filter(f => config.value[f.key]).length);
         const totalCount = computed(() => allFeatures.value.length);
+        const totalCustomEntries = computed(() => {
+            const l = lists.value;
+            const u = customUrls.value;
+            return (l.blocklist||[]).length + (l.allowlist||[]).length +
+                   (l.redirect_rules||[]).length + (l.private_tlds||[]).length +
+                   (l.mullvad_upstream||[]).length +
+                   (u.blocklist||[]).length + (u.allowlist||[]).length;
+        });
 
-        const apiFetch = async (url, opts={}) => {
+        // ===== API =====
+        const apiFetch = async (url, opts = {}) => {
             if (!opts.headers) opts.headers = {};
             if (token.value) opts.headers['Authorization'] = 'Bearer ' + token.value;
             if (!opts.headers['Content-Type'] && opts.body) opts.headers['Content-Type'] = 'application/json';
             const res = await fetch(url, opts);
-            if (res.status === 401) { token.value=''; localStorage.removeItem('dnsadm_token'); appState.value='login'; }
+            if (res.status === 401) {
+                token.value = '';
+                localStorage.removeItem('dnsadm_token');
+                appState.value = 'login';
+            }
             return res;
         };
 
+        // ===== AUTH =====
         const register = async () => {
             authError.value = '';
             if (regPass.value !== regPass2.value) { authError.value = 'Passwords do not match'; return; }
             if (regPass.value.length < 6) { authError.value = 'Password must be at least 6 characters'; return; }
             try {
-                const res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ username:regUser.value, password:regPass.value }) });
+                const res = await fetch('/api/register', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: regUser.value, password: regPass.value })
+                });
                 const data = await res.json();
-                if (res.ok) { token.value=data.token; localStorage.setItem('dnsadm_token',data.token); adminUsername.value=data.username; showToast('Admin account created!'); loadConfig(); }
-                else { authError.value = data.error || 'Registration failed'; }
+                if (res.ok) {
+                    token.value = data.token; localStorage.setItem('dnsadm_token', data.token);
+                    adminUsername.value = data.username; showToast('Admin account created!');
+                    loadConfig();
+                } else { authError.value = data.error || 'Registration failed'; }
             } catch (e) { authError.value = 'Network error'; }
         };
 
         const login = async () => {
             authError.value = '';
             try {
-                const res = await fetch('/api/auth', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ username:loginUser.value, password:loginPass.value }) });
+                const res = await fetch('/api/auth', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: loginUser.value, password: loginPass.value })
+                });
                 const data = await res.json();
                 if (res.ok && data.token) {
-                    if (data.noAuth) { token.value='open'; } else { token.value=data.token; adminUsername.value=data.username||''; }
+                    if (data.noAuth) { token.value = 'open'; } else { token.value = data.token; adminUsername.value = data.username || ''; }
                     localStorage.setItem('dnsadm_token', token.value);
-                    showToast('Login successful'); loadConfig();
-                } else if (data.needsSetup) { appState.value='setup'; }
+                    showToast('Login successful');
+                    loadConfig();
+                } else if (data.needsSetup) { appState.value = 'setup'; }
                 else { authError.value = data.error || 'Invalid credentials'; }
             } catch (e) { authError.value = 'Network error'; }
         };
 
+        const logout = () => {
+            token.value = '';
+            adminUsername.value = '';
+            localStorage.removeItem('dnsadm_token');
+            appState.value = 'login';
+            loginUser.value = '';
+            loginPass.value = '';
+        };
+
+        // ===== CONFIG =====
         const loadConfig = async () => {
             try {
                 const res = await apiFetch('/api/config');
-                if (res.ok) { const d=await res.json(); config.value=d.config; stats.value=d.stats; appState.value='admin'; }
-            } catch (e) { showToast('Failed to load config','error'); }
+                if (res.ok) {
+                    const d = await res.json();
+                    config.value = d.config;
+                    stats.value = d.stats;
+                    appState.value = 'admin';
+                    // Also try to get the username from auth header if noAuth mode
+                    if (d.stats && d.stats.hasAuth === false) adminUsername.value = '';
+                }
+            } catch (e) { showToast('Failed to load config', 'error'); }
         };
 
         const updateConfig = async (updates) => {
             try {
-                const res = await apiFetch('/api/config', { method:'POST', body:JSON.stringify(updates) });
-                if (res.ok) { const d=await res.json(); config.value=d.config; stats.value=d.stats; showToast('Settings saved'); }
-                else showToast('Save failed','error');
-            } catch (e) { showToast('Network error','error'); }
+                const res = await apiFetch('/api/config', { method: 'POST', body: JSON.stringify(updates) });
+                if (res.ok) {
+                    const d = await res.json();
+                    config.value = d.config;
+                    stats.value = d.stats;
+                    showToast('Settings saved');
+                } else { showToast('Save failed', 'error'); }
+            } catch (e) { showToast('Network error', 'error'); }
         };
 
-        const toggleFeature = k => { const u={}; u[k]=!config.value[k]; updateConfig(u); };
+        const toggleFeature = k => { const u = {}; u[k] = !config.value[k]; updateConfig(u); };
+
         const saveUpstreams = () => updateConfig({
-            UPSTREAM_PRIMARY:config.value.UPSTREAM_PRIMARY, UPSTREAM_FALLBACK:config.value.UPSTREAM_FALLBACK,
-            UPSTREAM_GEO_BYPASS:config.value.UPSTREAM_GEO_BYPASS, UPSTREAM_TIMEOUT:parseInt(config.value.UPSTREAM_TIMEOUT)||5000,
-            ECS_PREFIX_V4:parseInt(config.value.ECS_PREFIX_V4)||24, ECS_PREFIX_V6:parseInt(config.value.ECS_PREFIX_V6)||48,
-            ALL_LISTS_REFRESH_INTERVAL:parseInt(config.value.ALL_LISTS_REFRESH_INTERVAL)||3600000,
+            UPSTREAM_PRIMARY: config.value.UPSTREAM_PRIMARY,
+            UPSTREAM_FALLBACK: config.value.UPSTREAM_FALLBACK,
+            UPSTREAM_GEO_BYPASS: config.value.UPSTREAM_GEO_BYPASS,
+            UPSTREAM_TIMEOUT: parseInt(config.value.UPSTREAM_TIMEOUT) || 5000,
+            ECS_PREFIX_V4: parseInt(config.value.ECS_PREFIX_V4) || 24,
+            ECS_PREFIX_V6: parseInt(config.value.ECS_PREFIX_V6) || 48,
+            ALL_LISTS_REFRESH_INTERVAL: parseInt(config.value.ALL_LISTS_REFRESH_INTERVAL) || 3600000,
         });
 
-        // Lists CRUD
+        // ===== LISTS =====
         const loadLists = async () => {
             try { const res = await apiFetch('/api/lists'); if (res.ok) lists.value = await res.json(); } catch {}
             try { const res = await apiFetch('/api/urls'); if (res.ok) customUrls.value = await res.json(); } catch {}
         };
+
+        const refreshStats = async () => {
+            try {
+                const res = await apiFetch('/api/config');
+                if (res.ok) { const d = await res.json(); stats.value = d.stats; }
+            } catch {}
+        };
+
+        const switchToLists = async () => {
+            tab.value = 'lists';
+            await loadLists();
+        };
+
         const addUrl = async () => {
             const u = newUrl.value.trim();
             if (!u) return;
             try {
-                const res = await apiFetch('/api/urls/add', { method:'POST', body:JSON.stringify({ type:listTab.value, url:u }) });
-                if (res.ok) { const data=await res.json(); customUrls.value=data.urls; newUrl.value=''; showToast('URL added — domains will be fetched on next refresh'); }
-                else showToast('Failed to add URL','error');
-            } catch (e) { showToast('Network error','error'); }
+                const res = await apiFetch('/api/urls/add', { method: 'POST', body: JSON.stringify({ type: listTab.value, url: u }) });
+                if (res.ok) {
+                    const data = await res.json();
+                    customUrls.value = data.urls;
+                    newUrl.value = '';
+                    showToast('URL added — domains fetched on next refresh');
+                } else showToast('Failed to add URL', 'error');
+            } catch (e) { showToast('Network error', 'error'); }
         };
+
         const removeUrl = async (type, url) => {
             try {
-                const res = await apiFetch('/api/urls/remove', { method:'POST', body:JSON.stringify({ type, url }) });
-                if (res.ok) { const data=await res.json(); customUrls.value=data.urls; showToast('URL removed'); }
-                else showToast('Failed to remove URL','error');
-            } catch (e) { showToast('Network error','error'); }
+                const res = await apiFetch('/api/urls/remove', { method: 'POST', body: JSON.stringify({ type, url }) });
+                if (res.ok) {
+                    const data = await res.json();
+                    customUrls.value = data.urls;
+                    showToast('URL removed');
+                } else showToast('Failed to remove URL', 'error');
+            } catch (e) { showToast('Network error', 'error'); }
         };
+
         const addDomain = async () => {
             const d = newDomain.value.trim().toLowerCase();
             if (!d) return;
             try {
-                const res = await apiFetch('/api/lists/add', { method:'POST', body:JSON.stringify({ type:listTab.value, entries:[d] }) });
-                if (res.ok) { const data=await res.json(); lists.value=data.lists; newDomain.value=''; showToast('Domain added'); }
-                else showToast('Failed to add','error');
-            } catch (e) { showToast('Network error','error'); }
-        };
-        const addRedirect = async () => {
-            const s=newRedirSource.value.trim().toLowerCase(), t=newRedirTarget.value.trim().toLowerCase();
-            if (!s || !t) return;
-            try {
-                const res = await apiFetch('/api/lists/add', { method:'POST', body:JSON.stringify({ type:'redirect_rules', entries:[{source:s,target:t}] }) });
-                if (res.ok) { const data=await res.json(); lists.value=data.lists; newRedirSource.value=''; newRedirTarget.value=''; showToast('Redirect rule added'); }
-                else showToast('Failed to add','error');
-            } catch (e) { showToast('Network error','error'); }
-        };
-        const removeEntry = async (type, entry) => {
-            try {
-                const res = await apiFetch('/api/lists/remove', { method:'POST', body:JSON.stringify({ type, entries:[entry] }) });
-                if (res.ok) { const data=await res.json(); lists.value=data.lists; showToast('Entry removed'); }
-                else showToast('Failed to remove','error');
-            } catch (e) { showToast('Network error','error'); }
+                const res = await apiFetch('/api/lists/add', { method: 'POST', body: JSON.stringify({ type: listTab.value, entries: [d] }) });
+                if (res.ok) {
+                    const data = await res.json();
+                    lists.value = data.lists;
+                    newDomain.value = '';
+                    showToast('Domain added');
+                    refreshStats();
+                } else showToast('Failed to add domain', 'error');
+            } catch (e) { showToast('Network error', 'error'); }
         };
 
+        const addRedirect = async () => {
+            const s = newRedirSource.value.trim().toLowerCase();
+            const t = newRedirTarget.value.trim().toLowerCase();
+            if (!s || !t) return;
+            try {
+                const res = await apiFetch('/api/lists/add', { method: 'POST', body: JSON.stringify({ type: 'redirect_rules', entries: [{ source: s, target: t }] }) });
+                if (res.ok) {
+                    const data = await res.json();
+                    lists.value = data.lists;
+                    newRedirSource.value = '';
+                    newRedirTarget.value = '';
+                    showToast('Redirect rule added');
+                    refreshStats();
+                } else showToast('Failed to add', 'error');
+            } catch (e) { showToast('Network error', 'error'); }
+        };
+
+        const removeEntry = async (type, entry) => {
+            try {
+                const res = await apiFetch('/api/lists/remove', { method: 'POST', body: JSON.stringify({ type, entries: [entry] }) });
+                if (res.ok) {
+                    const data = await res.json();
+                    lists.value = data.lists;
+                    showToast('Entry removed');
+                    refreshStats();
+                } else showToast('Failed to remove', 'error');
+            } catch (e) { showToast('Network error', 'error'); }
+        };
+
+        // ===== INIT =====
         onMounted(async () => {
             try {
                 const res = await apiFetch('/api/config');
                 if (res.ok) {
                     const d = await res.json();
-                    config.value = d.config; stats.value = d.stats;
+                    config.value = d.config;
+                    stats.value = d.stats;
                     if (d.stats.needsSetup) { appState.value = 'setup'; }
                     else { appState.value = 'admin'; }
                 } else if (res.status === 401) { appState.value = 'login'; }
@@ -498,10 +1267,12 @@ createApp({
             appState, tab, token, adminUsername, config, stats,
             loginUser, loginPass, regUser, regPass, regPass2, authError,
             lists, listTab, customUrls, newUrl, newDomain, newRedirSource, newRedirTarget,
-            toastMsg, toastType, tabLabels, listTabLabels,
-            features, filters, allFeatures, activeCount, totalCount,
-            register, login, toggleFeature, saveUpstreams,
-            loadLists, addDomain, addRedirect, removeEntry, addUrl, removeUrl,
+            toastMsg, toastType,
+            tabLabels, listTabLabels,
+            features, filters, allFeatures,
+            activeFeatureCount, activeFilterCount, activeCount, totalCount, totalCustomEntries,
+            register, login, logout, toggleFeature, saveUpstreams,
+            switchToLists, loadLists, addDomain, addRedirect, removeEntry, addUrl, removeUrl,
             fmt, timeAgo, showToast
         };
     }
