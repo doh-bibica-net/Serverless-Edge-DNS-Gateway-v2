@@ -1904,7 +1904,7 @@ https://example.com/hosts.txt"
                         if (res.ok) {
                             const data = await res.json();
                             customUrls.value = data.urls;
-                            showToast('Subscription URLs saved');
+                            showToast(data.message || 'Subscription URLs saved');
                             refreshStats();
                         } else showToast('Failed to save URLs', 'error');
                     } catch (e) { showToast('Network error', 'error'); }
@@ -1947,7 +1947,7 @@ https://example.com/hosts.txt"
                         if (res.ok) {
                             const data = await res.json();
                             lists.value = data.lists;
-                            showToast('List saved and applied successfully');
+                            showToast(data.message || 'List saved and applied successfully');
                             refreshStats();
                         } else showToast('Failed to save list', 'error');
                     } catch (e) { showToast('Network error', 'error'); }
