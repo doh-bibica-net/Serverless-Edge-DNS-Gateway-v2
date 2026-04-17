@@ -271,32 +271,36 @@ async function refreshBlocklists(baseUrl, env) {
         MULLVAD_UPSTREAM_ENABLED ? fetchList(mUrl) : Promise.resolve(new Set())
       ]);
 
-      // Always update state, even if lists are empty (to prevent infinite re-fetch)
-      if (AD_BLOCK_ENABLED) { adBlocklist = block; adAllowlist = allow; }
-      if (BLOCK_PRIVATE_TLD) { privateTlds = privateList; }
-      if (DNS_REDIRECT_ENABLED) { redirectRules = redirRules; }
-      if (MULLVAD_UPSTREAM_ENABLED) { mullvadUpstreamDomains = mullvadList; }
+      // Always update state, even if lists are empty (to prevent infinite re-fetch and clear memory when disabled)
+      adBlocklist = block;
+      adAllowlist = allow;
+      privateTlds = privateList;
+      redirectRules = redirRules;
+      mullvadUpstreamDomains = mullvadList;
 
       // Merge custom domains from KV
       if (env?.DNS_GATEWAY_KV) {
         try {
           const custom = await env.DNS_GATEWAY_KV.get('custom_domains', 'json');
           if (custom) {
-            if (custom.blocklist) custom.blocklist.forEach(d => adBlocklist.add(d));
-            if (custom.allowlist) custom.allowlist.forEach(d => adAllowlist.add(d));
-            if (custom.private_tlds) custom.private_tlds.forEach(d => privateTlds.add(d));
-            if (custom.redirect_rules) custom.redirect_rules.forEach(r => redirectRules.set(r.source.toLowerCase(), r.target.toLowerCase()));
-            if (custom.mullvad_upstream) custom.mullvad_upstream.forEach(d => mullvadUpstreamDomains.add(d));
+            if (AD_BLOCK_ENABLED && custom.blocklist) custom.blocklist.forEach(d => adBlocklist.add(d));
+            if (AD_BLOCK_ENABLED && custom.allowlist) custom.allowlist.forEach(d => adAllowlist.add(d));
+            if (BLOCK_PRIVATE_TLD && custom.private_tlds) custom.private_tlds.forEach(d => privateTlds.add(d));
+            if (DNS_REDIRECT_ENABLED && custom.redirect_rules) custom.redirect_rules.forEach(r => redirectRules.set(r.source.toLowerCase(), r.target.toLowerCase()));
+            if (MULLVAD_UPSTREAM_ENABLED && custom.mullvad_upstream) custom.mullvad_upstream.forEach(d => mullvadUpstreamDomains.add(d));
           }
         } catch { }
+        
         // Fetch custom external URLs (user-added list subscriptions)
         try {
-          const customUrls = await env.DNS_GATEWAY_KV.get('custom_urls', 'json');
-          if (customUrls) {
-            const fetches = [];
-            if (customUrls.blocklist) customUrls.blocklist.forEach(u => fetches.push(fetchList(u).then(s => s.forEach(d => adBlocklist.add(d)))));
-            if (customUrls.allowlist) customUrls.allowlist.forEach(u => fetches.push(fetchList(u).then(s => s.forEach(d => adAllowlist.add(d)))));
-            await Promise.allSettled(fetches);
+          if (AD_BLOCK_ENABLED) {
+            const customUrls = await env.DNS_GATEWAY_KV.get('custom_urls', 'json');
+            if (customUrls) {
+              const fetches = [];
+              if (customUrls.blocklist) customUrls.blocklist.forEach(u => fetches.push(fetchList(u).then(s => s.forEach(d => adBlocklist.add(d)))));
+              if (customUrls.allowlist) customUrls.allowlist.forEach(u => fetches.push(fetchList(u).then(s => s.forEach(d => adAllowlist.add(d)))));
+              await Promise.allSettled(fetches);
+            }
           }
         } catch { }
       }
