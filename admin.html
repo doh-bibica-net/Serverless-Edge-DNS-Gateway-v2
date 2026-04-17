@@ -1525,22 +1525,24 @@
                                     <div>
                                         <div class="card-title">Custom {{ listTabLabels[listTab] || 'Rules' }}</div>
                                         <div class="card-desc" v-if="listTab==='blocklist' || listTab==='allowlist'">Matches domains exactly. Comments starting with # or ! are ignored.</div>
-                                        <div class="card-desc" v-else-if="listTab==='private_tlds'">Matches domain suffix (e.g. "local" blocks "domain.local"). Comments starting with # are ignored.</div>
-                                        <div class="card-desc" v-else-if="listTab==='mullvad_upstream'">Matches domain suffix to route through Mullvad. Comments starting with # are ignored.</div>
-                                        <div class="card-desc" v-else-if="listTab==='redirect_rules'">DNS CNAME overrides — Format: source target (Exact match only). Comments starting with # are ignored.</div>
+                                        <div class="card-desc" v-else-if="listTab==='private_tlds'">Block internal domains or routers (e.g. "local" blocks domain.local). Uses raw text lines, so dots are not strictly required.</div>
+                                        <div class="card-desc" v-else-if="listTab==='mullvad_upstream'">Anonymous routing (no ECS) for specific domains (e.g. Github routes better via Mullvad than Google/CF).</div>
+                                        <div class="card-desc" v-else-if="listTab==='redirect_rules'">Custom DNS redirect/rewrite (CNAME overrides) — helps overcome network blocks by rewriting target domains.</div>
                                     </div>
                                     <span class="badge badge-d">{{ (lists[listTab]||[]).length }} active entries</span>
                                 </div>
                                 <div class="card-body">
-                                    <div class="section-label">Raw Text Editor</div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                        <div class="section-label" style="margin-bottom:0;">Raw Text Editor</div>
+                                        <button class="btn btn-p btn-sm" @click="saveListText" :disabled="!stats.hasKV || saving" style="padding: 4px 12px; font-weight: 600;">
+                                            {{ saving ? 'Saving...' : 'Save & Apply Config' }}
+                                        </button>
+                                    </div>
                                     <div class="input-row" style="margin-bottom:16px;">
                                         <textarea class="fi fi-mono" v-model="currentRawText"
-                                            :placeholder="listTab==='redirect_rules' ? '# Format: source.com target.com\nrouter.local 192.168.1.1\n\n# Blocked trackers\nads.example.com 0.0.0.0' : '# Example config with comments\n# Tracking servers\nads.example.com\napi.tracker.com'"
+                                            :placeholder="listTab==='redirect_rules' ? '# Custom DNS redirect/rewrite\n# Format: source target\n\nwww.bilibili.tv www.bilibili.tv.w.cdngslb.com\nmedium.com rocket.net' : '# Example config with comments\n# Tracking servers\nads.example.com\napi.tracker.com'"
                                             :disabled="!stats.hasKV" rows="12" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
                                     </div>
-                                    <button class="btn btn-p" @click="saveListText" :disabled="!stats.hasKV || saving" style="width: 100%; padding: 10px; font-weight: 600;">
-                                        {{ saving ? 'Saving...' : 'Save & Apply Config' }}
-                                    </button>
                                 </div>
                             </div>
 
@@ -1577,7 +1579,12 @@
                                         subscriptions</span>
                                 </div>
                                 <div class="card-body">
-                                    <div class="section-label">Raw Text Editor (URLs)</div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                        <div class="section-label" style="margin-bottom:0;">Raw Text Editor (URLs)</div>
+                                        <button class="btn btn-p btn-sm" @click="saveUrlText" :disabled="!stats.hasKV || savingUrl" style="padding: 4px 12px; font-weight: 600;">
+                                            {{ savingUrl ? 'Saving...' : 'Save & Fetch URLs' }}
+                                        </button>
+                                    </div>
                                     <div class="input-row" style="margin-bottom:16px;">
                                         <textarea class="fi fi-mono" v-model="currentRawUrlText"
                                             placeholder="# Format: One subscription URL per line
@@ -1585,9 +1592,6 @@ https://example.com/blocklist.txt
 https://example.com/hosts.txt"
                                             :disabled="!stats.hasKV" rows="5" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
                                     </div>
-                                    <button class="btn btn-i" @click="saveUrlText" :disabled="!stats.hasKV || savingUrl" style="width: 100%; padding: 10px; font-weight: 600;">
-                                        {{ savingUrl ? 'Saving...' : 'Save & Fetch URLs' }}
-                                    </button>
                                     <div class="fh" style="margin-top:10px; text-align: center;">Domains are auto-cleaned
                                         (AdBlock/hosts/plain formats). Fetched and merged on next list refresh.</div>
                                 </div>
