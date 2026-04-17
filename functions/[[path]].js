@@ -784,7 +784,7 @@ function buildRedirectResponse(originalQuery, upstreamResponse, originalDomain, 
   res[off++] = 0x00; res[off++] = 0x05; // TYPE = CNAME
   res[off++] = 0x00; res[off++] = 0x01; // CLASS = IN
   res[off++] = 0x00; res[off++] = 0x00;
-  res[off++] = 0x01; res[off++] = 0x2C; // TTL = 300
+  res[off++] = 0x00; res[off++] = 0x05; // TTL = 5
   res[off++] = (targetWire.length >> 8) & 0xFF;
   res[off++] = targetWire.length & 0xFF;
   res.set(targetWire, off); off += targetWire.length;
