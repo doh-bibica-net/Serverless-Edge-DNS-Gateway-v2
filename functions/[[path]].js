@@ -1,7 +1,7 @@
 // ==================== CONFIG ====================
 let UPSTREAM_PRIMARY = 'https://bu0eg1tdzu.cloudflare-gateway.com/dns-query';
 let UPSTREAM_FALLBACK = 'https://rhpcv957tj.cloudflare-gateway.com/dns-query';
-let UPSTREAM_GEO_BYPASS = 'https://dns.mullvad.net/dns-query'; // Re-resolve when geo-block returns loopback
+let UPSTREAM_GEO_BYPASS = 'https://dns.mullvad.net/dns-query'; // Re-resolve without ECS when geo-block returns loopback
 let UPSTREAM_TIMEOUT = 5000;
 
 // Refresh interval for ALL lists (blocklist, allowlists, private TLDs, redirect rules)
@@ -72,21 +72,11 @@ function getCurrentConfig() {
 function applyConfig(cfg) {
   let listConfigChanged = false;
 
-  // Validate và apply upstream URLs — chỉ accept https:// để tránh brick gateway
-  if (cfg.UPSTREAM_PRIMARY !== undefined) {
-    const u = String(cfg.UPSTREAM_PRIMARY);
-    if (u.startsWith('https://')) UPSTREAM_PRIMARY = u;
-  }
-  if (cfg.UPSTREAM_FALLBACK !== undefined) {
-    const u = String(cfg.UPSTREAM_FALLBACK);
-    if (!u || u.startsWith('https://')) UPSTREAM_FALLBACK = u; // fallback có thể để rỗng
-  }
-  if (cfg.UPSTREAM_GEO_BYPASS !== undefined) {
-    const u = String(cfg.UPSTREAM_GEO_BYPASS);
-    if (!u || u.startsWith('https://')) UPSTREAM_GEO_BYPASS = u; // geo bypass có thể để rỗng
-  }
-  if (cfg.UPSTREAM_TIMEOUT !== undefined) UPSTREAM_TIMEOUT = Math.max(500, Number(cfg.UPSTREAM_TIMEOUT) || 5000);
-  if (cfg.ALL_LISTS_REFRESH_INTERVAL !== undefined) ALL_LISTS_REFRESH_INTERVAL = Math.max(60000, Number(cfg.ALL_LISTS_REFRESH_INTERVAL) || 3600000);
+  if (cfg.UPSTREAM_PRIMARY !== undefined) UPSTREAM_PRIMARY = String(cfg.UPSTREAM_PRIMARY);
+  if (cfg.UPSTREAM_FALLBACK !== undefined) UPSTREAM_FALLBACK = String(cfg.UPSTREAM_FALLBACK);
+  if (cfg.UPSTREAM_GEO_BYPASS !== undefined) UPSTREAM_GEO_BYPASS = String(cfg.UPSTREAM_GEO_BYPASS);
+  if (cfg.UPSTREAM_TIMEOUT !== undefined) UPSTREAM_TIMEOUT = Number(cfg.UPSTREAM_TIMEOUT) || 5000;
+  if (cfg.ALL_LISTS_REFRESH_INTERVAL !== undefined) ALL_LISTS_REFRESH_INTERVAL = Number(cfg.ALL_LISTS_REFRESH_INTERVAL) || 3600000;
   if (cfg.AD_BLOCK_ENABLED !== undefined && cfg.AD_BLOCK_ENABLED !== AD_BLOCK_ENABLED) { AD_BLOCK_ENABLED = Boolean(cfg.AD_BLOCK_ENABLED); listConfigChanged = true; }
 
   if (cfg.BLOCKLIST_URL !== undefined && cfg.BLOCKLIST_URL !== BLOCKLIST_URL) { BLOCKLIST_URL = String(cfg.BLOCKLIST_URL); listConfigChanged = true; }
@@ -126,7 +116,7 @@ function applyConfig(cfg) {
 
 let configLoaded = false;
 async function loadConfig(env) {
-  if (configLoaded && Date.now() - configLastFetch < 10000) return; // 10s TTL — đủ nhanh mà không spam KV
+  if (configLoaded && Date.now() - configLastFetch < 60000) return;
   configLoaded = true;
   configLastFetch = Date.now();
   if (!env?.DNS_GATEWAY_KV) return;
@@ -1131,9 +1121,10 @@ async function handleRequest(request, context) {
     }
 
     // GET /api/config — Read current config + stats
-    // NOTE: Không gọi ensureBlocklistsLoaded ở đây — lists chỉ load khi có DNS query thực sự.
-    // Tránh admin page gây hàng trăm subrequests khi fetch config.
     if (path === '/api/config' && request.method === 'GET') {
+      if (AD_BLOCK_ENABLED || BLOCK_PRIVATE_TLD || DNS_REDIRECT_ENABLED || MULLVAD_UPSTREAM_ENABLED) {
+        await ensureBlocklistsLoaded(request.url, context);
+      }
       return new Response(JSON.stringify({ config: getCurrentConfig(), stats: getCurrentStats(context.env, adminUser) }), { headers: apiHeaders });
     }
 
@@ -1142,7 +1133,7 @@ async function handleRequest(request, context) {
       try {
         const updates = await request.json();
         await saveConfigToKV(context.env, updates);
-        // Không gọi ensureBlocklistsLoaded — lists tự reload khi có DNS query tiếp theo
+        await ensureBlocklistsLoaded(request.url, context);
         return new Response(JSON.stringify({ ok: true, config: getCurrentConfig(), stats: getCurrentStats(context.env, adminUser) }), { headers: apiHeaders });
       } catch (e) {
         return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders });
@@ -1187,22 +1178,19 @@ async function handleRequest(request, context) {
           for (const rawLine of lines) {
             const line = rawLine.trim().toLowerCase();
             if (!line || /^[!#]/.test(line)) continue;
-            // Strip inline comments: "source.com target.com # comment" → "source.com target.com"
-            const commentIdx = line.indexOf('#');
-            const cleanLine = (commentIdx >= 0 ? line.slice(0, commentIdx) : line).trim();
-            if (!cleanLine) continue;
-            const parts = cleanLine.split(/\s+/).filter(Boolean);
+            const parts = line.split(/\s+/);
             if (parts.length >= 2) {
-                const src = parts[0];
-                const tgt = parts[1];
-                // Source và target đều phải có dấu chấm (domain hợp lệ)
-                if (!src.includes('.') || !tgt.includes('.')) {
-                    skipped++;
-                    continue;
+                // Determine if they meet the strict dot logic (neither source nor target can be dotless unless it's an IP)
+                // Actually, targets can be IPs, but sources MUST have dots per user rules
+                if (!parts[0].includes('.') || (!parts[1].includes('.') && parts[1] !== '#')) {
+                     skipped++;
+                     continue;
                 }
-                if (!parsedSet.has(src)) {
-                    parsedSet.add(src);
-                    parsedArray.push({ source: src, target: tgt });
+                
+                // For redirects, deduplicate by source domain
+                if (!parsedSet.has(parts[0])) {
+                    parsedSet.add(parts[0]);
+                    parsedArray.push({ source: parts[0], target: parts[1] });
                 }
             } else {
                 skipped++;
