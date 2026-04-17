@@ -1220,25 +1220,18 @@
                     <h2>{{ tabLabels[tab] }}</h2>
                     <div class="topbar-right" style="gap: 12px;">
                         <span v-if="stats.hasKV && appState === 'admin'" class="badge badge-i" title="List Cache Age" style="font-family: monospace; background: transparent; color: var(--text-2); border: 1px solid var(--border);">
-                            ⏱ {{ stats.lastFetch==='never' ? 'Never' : timeAgo(stats.lastFetch) }}
+                            ⏱ Last Refresh: {{ stats.lastFetch==='never' ? 'Never' : timeAgo(stats.lastFetch) }}
                         </span>
                         
-                        <div style="display: flex; gap: 8px;">
-                            <button v-if="appState === 'admin'" class="btn" @click="forceSync" :disabled="syncing" title="Force Sync Lists" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
-                                {{ syncing ? '⏳' : '🔄' }}
-                            </button>
+                        <div style="display: flex; gap: 8px; align-items: center;">
                             <button class="btn" @click="toggleTheme" title="Toggle Light/Dark Theme" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
                                 {{ theme === 'light' ? '🌙' : '☀️' }}
                             </button>
+                            <button v-if="appState === 'admin'" class="btn" @click="forceSync" :disabled="syncing" title="Force Sync Lists" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
+                                {{ syncing ? '⏳' : '🔄' }}
+                            </button>
                         </div>
-                        
-                        <span v-if="stats.hasKV" class="badge badge-s" style="margin-left: 4px;">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                                <circle cx="12" cy="12" r="12" />
-                            </svg>
-                            KV Connected
-                        </span>
-                        <span v-else class="badge badge-w" style="margin-left: 4px;">⚠ No KV</span>
+                        <span v-if="!stats.hasKV" class="badge badge-w" style="margin-left: 4px;">⚠ No KV</span>
                     </div>
                 </header>
 
@@ -1688,8 +1681,12 @@ https://example.com/hosts.txt"
                     setTimeout(() => toastMsg.value = '', 3200);
                 };
 
+                const sysTime = ref(Date.now());
+                setInterval(() => sysTime.value = Date.now(), 60000);
+
                 const fmt = n => n ? Number(n).toLocaleString() : '0';
                 const timeAgo = iso => {
+                    const _ = sysTime.value; // Force Vue reactivity ticker
                     const d = Date.now() - new Date(iso).getTime();
                     if (d < 60000) return 'Just now';
                     if (d < 3600000) return Math.floor(d / 60000) + 'm ago';
