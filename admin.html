@@ -432,6 +432,11 @@
             transform: translateX(20px);
         }
 
+        .toggle.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* ===== BADGES ===== */
         .badge {
             display: inline-flex;
@@ -1310,7 +1315,7 @@
                                         <div class="feat-name">{{ f.label }}</div>
                                         <div class="feat-desc">{{ f.desc }}</div>
                                     </div>
-                                    <div class="toggle" :class="{on: config[f.key]}" @click="toggleFeature(f.key)">
+                                    <div class="toggle" :class="{on: config[f.key], disabled: saving}" @click="toggleFeature(f.key)">
                                     </div>
                                 </div>
                             </div>
@@ -1334,7 +1339,7 @@
                                         <div class="feat-name">{{ f.label }}</div>
                                         <div class="feat-desc">{{ f.desc }}</div>
                                     </div>
-                                    <div class="toggle" :class="{on: config[f.key]}" @click="toggleFeature(f.key)">
+                                    <div class="toggle" :class="{on: config[f.key], disabled: saving}" @click="toggleFeature(f.key)">
                                     </div>
                                 </div>
                             </div>
@@ -1447,9 +1452,14 @@
                             </div>
                         </div>
 
-                        <!-- REDIRECT RULES TAB -->
-                        <div v-if="listTab==='redirect_rules'">
-                            <div class="card">
+                        <div v-if="listsLoading" class="list-empty" style="margin-top: 40px">
+                            <div class="list-empty-icon">⏳</div>
+                            Loading lists...
+                        </div>
+                        <div v-else>
+                            <!-- REDIRECT RULES TAB -->
+                            <div v-if="listTab==='redirect_rules'">
+                                <div class="card">
                                 <div class="card-head">
                                     <div>
                                         <div class="card-title">Custom Redirect Rules</div>
@@ -1606,6 +1616,7 @@
                                 </div>
                             </div>
                         </div>
+                        </div> <!-- close listsLoading else -->
                     </div>
 
                 </div><!-- /content -->
@@ -1637,6 +1648,8 @@
                 const lists = ref({});
                 const listTab = ref('blocklist');
                 const customUrls = ref({});
+                const saving = ref(false);
+                const listsLoading = ref(false);
                 const newUrl = ref('');
                 const newDomain = ref('');
                 const newRedirSource = ref('');
@@ -1777,6 +1790,8 @@
                 };
 
                 const updateConfig = async (updates) => {
+                    if (saving.value) return;
+                    saving.value = true;
                     try {
                         const res = await apiFetch('/api/config', { method: 'POST', body: JSON.stringify(updates) });
                         if (res.ok) {
@@ -1786,9 +1801,14 @@
                             showToast('Settings saved');
                         } else { showToast('Save failed', 'error'); }
                     } catch (e) { showToast('Network error', 'error'); }
+                    finally { saving.value = false; }
                 };
 
-                const toggleFeature = k => { const u = {}; u[k] = !config.value[k]; updateConfig(u); };
+                const toggleFeature = k => { 
+                    if (saving.value) return;
+                    const u = { ...config.value, [k]: !config.value[k] }; 
+                    updateConfig(u); 
+                };
 
                 const saveUpstreams = () => updateConfig({
                     UPSTREAM_PRIMARY: config.value.UPSTREAM_PRIMARY,
@@ -1802,8 +1822,13 @@
 
                 // ===== LISTS =====
                 const loadLists = async () => {
-                    try { const res = await apiFetch('/api/lists'); if (res.ok) lists.value = await res.json(); } catch { }
-                    try { const res = await apiFetch('/api/urls'); if (res.ok) customUrls.value = await res.json(); } catch { }
+                    listsLoading.value = true;
+                    try {
+                        try { const res = await apiFetch('/api/lists'); if (res.ok) lists.value = await res.json(); } catch { }
+                        try { const res = await apiFetch('/api/urls'); if (res.ok) customUrls.value = await res.json(); } catch { }
+                    } finally {
+                        listsLoading.value = false;
+                    }
                 };
 
                 const refreshStats = async () => {
@@ -1815,6 +1840,7 @@
 
                 const switchToLists = async () => {
                     tab.value = 'lists';
+                    refreshStats();
                     await loadLists();
                 };
 
@@ -1906,7 +1932,7 @@
                     appState, tab, token, adminUsername, config, stats,
                     loginUser, loginPass, regUser, regPass, regPass2, authError,
                     lists, listTab, customUrls, newUrl, newDomain, newRedirSource, newRedirTarget,
-                    toastMsg, toastType,
+                    saving, listsLoading, toastMsg, toastType,
                     tabLabels, listTabLabels,
                     features, filters, allFeatures,
                     activeFeatureCount, activeFilterCount, activeCount, totalCount, totalCustomEntries,
