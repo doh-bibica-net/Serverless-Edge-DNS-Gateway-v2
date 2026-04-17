@@ -89,7 +89,7 @@ function applyConfig(cfg) {
   if (cfg.BLOCK_AAAA !== undefined) BLOCK_AAAA = Boolean(cfg.BLOCK_AAAA);
   if (cfg.BLOCK_PTR !== undefined) BLOCK_PTR = Boolean(cfg.BLOCK_PTR);
   if (cfg.BLOCK_HTTPS !== undefined) BLOCK_HTTPS = Boolean(cfg.BLOCK_HTTPS);
-  
+
   if (cfg.BLOCK_PRIVATE_TLD !== undefined && cfg.BLOCK_PRIVATE_TLD !== BLOCK_PRIVATE_TLD) { BLOCK_PRIVATE_TLD = Boolean(cfg.BLOCK_PRIVATE_TLD); listConfigChanged = true; }
   if (cfg.PRIVATE_TLD_URL !== undefined && cfg.PRIVATE_TLD_URL !== PRIVATE_TLD_URL) { PRIVATE_TLD_URL = String(cfg.PRIVATE_TLD_URL); listConfigChanged = true; }
 
@@ -235,11 +235,13 @@ async function fetchRedirectRules(url) {
     if (!res.ok) return new Map();
     const text = await res.text();
     const rules = new Map();
-    for (const line of text.split('\n')) {
-      const d = line.trim();
-      if (!d || d.startsWith('#') || d.startsWith('!')) continue;
-      const parts = d.split(/\s+/);
-      if (parts.length === 2) rules.set(parts[0].toLowerCase(), parts[1].toLowerCase());
+    for (const rawLine of text.split('\n')) {
+      let line = rawLine.replace(/\s*[!#].*$/, '').trim().toLowerCase();
+      if (!line) continue;
+      const parts = line.split(/\s+/);
+      if (parts.length >= 2 && parts[0].includes('.') && parts[1].includes('.')) {
+        rules.set(parts[0], parts[1]);
+      }
     }
     return rules;
   } catch { return new Map(); }
@@ -288,7 +290,7 @@ async function refreshBlocklists(baseUrl, env) {
             if (MULLVAD_UPSTREAM_ENABLED && custom.mullvad_upstream) custom.mullvad_upstream.forEach(d => mullvadUpstreamDomains.add(d));
           }
         } catch { }
-        
+
         // Fetch custom external URLs (user-added list subscriptions)
         try {
           if (AD_BLOCK_ENABLED) {
@@ -1164,9 +1166,9 @@ async function handleRequest(request, context) {
         const { type, text } = body;
         const validTypes = ['blocklist', 'allowlist', 'private_tlds', 'mullvad_upstream', 'redirect_rules'];
         if (!validTypes.includes(type) || typeof text !== 'string') return new Response(JSON.stringify({ error: 'Invalid type or text' }), { status: 400, headers: apiHeaders });
-        
+
         const custom = await context.env.DNS_GATEWAY_KV.get('custom_domains', 'json').catch(() => null) || {};
-        
+
         // Save the raw text so comments and formatting persist
         custom[type + '_text'] = text;
         const parsedArray = [];
@@ -1176,24 +1178,16 @@ async function handleRequest(request, context) {
 
         if (type === 'redirect_rules') {
           for (const rawLine of lines) {
-            const line = rawLine.trim().toLowerCase();
-            if (!line || /^[!#]/.test(line)) continue;
+            let line = rawLine.replace(/\s*[!#].*$/, '').trim().toLowerCase();
+            if (!line) continue;
             const parts = line.split(/\s+/);
-            if (parts.length >= 2) {
-                // Determine if they meet the strict dot logic (neither source nor target can be dotless unless it's an IP)
-                // Actually, targets can be IPs, but sources MUST have dots per user rules
-                if (!parts[0].includes('.') || (!parts[1].includes('.') && parts[1] !== '#')) {
-                     skipped++;
-                     continue;
-                }
-                
-                // For redirects, deduplicate by source domain
-                if (!parsedSet.has(parts[0])) {
-                    parsedSet.add(parts[0]);
-                    parsedArray.push({ source: parts[0], target: parts[1] });
-                }
+            if (parts.length >= 2 && parts[0].includes('.') && parts[1].includes('.')) {
+              if (!parsedSet.has(parts[0])) {
+                parsedSet.add(parts[0]);
+                parsedArray.push({ source: parts[0], target: parts[1] });
+              }
             } else {
-                skipped++;
+              skipped++;
             }
           }
         } else {
@@ -1201,19 +1195,19 @@ async function handleRequest(request, context) {
             const line = rawLine.trim().toLowerCase();
             if (!line || /^[!#]/.test(line)) continue;
             if (DOMAIN_REGEX.test(line)) {
-               // Strict dot requirement except for private_tlds
-               if (type !== 'private_tlds' && !line.includes('.')) {
-                   skipped++;
-                   continue;
-               }
-               parsedSet.add(line);
+              // Strict dot requirement except for private_tlds
+              if (type !== 'private_tlds' && !line.includes('.')) {
+                skipped++;
+                continue;
+              }
+              parsedSet.add(line);
             } else {
-               skipped++;
+              skipped++;
             }
           }
           parsedArray.push(...parsedSet);
         }
-        
+
         custom[type] = parsedArray;
         await context.env.DNS_GATEWAY_KV.put('custom_domains', JSON.stringify(custom));
         await triggerListSync(context.env);
@@ -1236,10 +1230,10 @@ async function handleRequest(request, context) {
         const body = await request.json();
         const { type, text } = body;
         if (!['blocklist', 'allowlist'].includes(type) || typeof text !== 'string') return new Response(JSON.stringify({ error: 'Invalid type or text' }), { status: 400, headers: apiHeaders });
-        
+
         const urls = await context.env.DNS_GATEWAY_KV.get('custom_urls', 'json').catch(() => null) || {};
         urls[type + '_text'] = text;
-        
+
         const parsedSet = new Set();
         const lines = text.split('\n');
         let skippedUrls = 0;
@@ -1252,7 +1246,7 @@ async function handleRequest(request, context) {
             skippedUrls++;
           }
         }
-        
+
         urls[type] = Array.from(parsedSet);
         await context.env.DNS_GATEWAY_KV.put('custom_urls', JSON.stringify(urls));
         await triggerListSync(context.env);

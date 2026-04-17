@@ -83,7 +83,7 @@
             background: var(--bg-canvas);
             border-left: 1px solid var(--border);
             border-right: 1px solid var(--border);
-            box-shadow: 0 0 40px rgba(0,0,0,0.03);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.03);
         }
 
         /* ===== SIDEBAR ===== */
@@ -304,7 +304,7 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
-        
+
         @media (max-width: 600px) {
             .stats-grid {
                 grid-template-columns: 1fr;
@@ -726,6 +726,12 @@
             border: 1px solid rgba(248, 81, 73, 0.3);
         }
 
+        .toast-info {
+            background: #1a2a44;
+            color: var(--accent);
+            border: 1px solid rgba(56, 139, 253, 0.3);
+        }
+
         /* ===== ALERT ===== */
         .alert {
             padding: 11px 16px;
@@ -1016,7 +1022,7 @@
                 width: 200px;
             }
 
-            .content {
+            .content-inner {
                 padding: 16px;
             }
 
@@ -1219,15 +1225,19 @@
                 <header class="topbar">
                     <h2>{{ tabLabels[tab] }}</h2>
                     <div class="topbar-right" style="gap: 12px;">
-                        <span v-if="stats.hasKV && appState === 'admin'" class="badge badge-s" title="List Cache Age" style="font-family: monospace;">
+                        <span v-if="stats.hasKV && appState === 'admin'" class="badge badge-s" title="List Cache Age"
+                            style="font-family: monospace;">
                             ⏱ Last Refresh: {{ stats.lastFetch==='never' ? 'Never' : timeAgo(stats.lastFetch) }}
                         </span>
-                        
+
                         <div style="display: flex; gap: 8px; align-items: center;">
-                            <button class="btn" @click="toggleTheme" title="Toggle Light/Dark Theme" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
+                            <button class="btn" @click="toggleTheme" title="Toggle Light/Dark Theme"
+                                style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
                                 {{ theme === 'light' ? '🌙' : '☀️' }}
                             </button>
-                            <button v-if="appState === 'admin'" class="btn" @click="forceSync" :disabled="syncing" title="Force Sync Lists" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
+                            <button v-if="appState === 'admin'" class="btn" @click="forceSync" :disabled="syncing"
+                                title="Force Sync Lists"
+                                style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
                                 {{ syncing ? '⏳' : '🔄' }}
                             </button>
                         </div>
@@ -1238,386 +1248,433 @@
                 <div class="content">
                     <div class="content-inner">
 
-                    <!-- ======= DASHBOARD ======= -->
-                    <div v-if="tab==='dashboard'">
-                        <div v-if="!stats.hasKV" class="alert alert-i">
-                            ℹ️ No KV binding detected. Bind <code>DNS_GATEWAY_KV</code> for persistent config and custom
-                            domain lists.
-                        </div>
+                        <!-- ======= DASHBOARD ======= -->
+                        <div v-if="tab==='dashboard'">
+                            <div v-if="!stats.hasKV" class="alert alert-i">
+                                ℹ️ No KV binding detected. Bind <code>DNS_GATEWAY_KV</code> for persistent config and
+                                custom
+                                domain lists.
+                            </div>
 
-                        <!-- Stats row -->
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-label">Active Features</div>
-                                <div class="stat-value">{{ activeFeatureCount }}<small>/{{ features.length }}</small>
-                                </div>
-                                <div class="stat-sub">Core capabilities</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-label">Active Upstreams</div>
-                                <div class="stat-value">{{ config.ECS_INJECTION_ENABLED ? 1 : 0 }}<small>/1</small>
-                                </div>
-                                <div class="stat-sub">ECS capabilities (Upstreams)</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-label">Active Filters</div>
-                                <div class="stat-value">{{ activeFilterCount }}<small>/{{ filters.length }}</small>
-                                </div>
-                                <div class="stat-sub">Query type filters</div>
-                            </div>
-                            <div class="stat-card ok">
-                                <div class="stat-label">Blocklist</div>
-                                <div class="stat-value">{{ fmt(stats.blocklistSize) }}</div>
-                                <div class="stat-sub">Blocked domains (merged)</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-label">Allowlist</div>
-                                <div class="stat-value">{{ fmt(stats.allowlistSize) }}</div>
-                                <div class="stat-sub">Allowed domains (merged)</div>
-                            </div>
-                            <div class="stat-card err">
-                                <div class="stat-label">Private TLDs</div>
-                                <div class="stat-value">{{ fmt(stats.privateTldsSize) }}</div>
-                                <div class="stat-sub">Internal domains (merged)</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-label">Mullvad</div>
-                                <div class="stat-value">{{ stats.mullvadDomainsSize || 0 }}</div>
-                                <div class="stat-sub">Upstream domains (merged)</div>
-                            </div>
-                            <div class="stat-card warn">
-                                <div class="stat-label">Redirect Rules</div>
-                                <div class="stat-value">{{ stats.redirectRulesSize || 0 }}</div>
-                                <div class="stat-sub">CNAME overrides (merged)</div>
-                            </div>
-                        </div>
-
-                        <!-- Feature status table -->
-                        <div class="card">
-                            <div class="card-head">
-                                <div>
-                                    <div class="card-title">Feature Status</div>
-                                    <div class="card-desc">All toggleable features and filters at a glance</div>
-                                </div>
-                                <span class="badge badge-i">{{ activeCount }}/{{ totalCount }} active</span>
-                            </div>
-                            <div class="feat-table">
-                                <div v-for="f in allFeatures" :key="f.key" class="feat-row">
-                                    <div class="feat-info">
-                                        <div class="feat-name">{{ f.label }}</div>
-                                        <div class="feat-desc">{{ f.desc }}</div>
+                            <!-- Stats row -->
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-label">Active Features</div>
+                                    <div class="stat-value">{{ activeFeatureCount }}<small>/{{ features.length
+                                            }}</small>
                                     </div>
-                                    <span class="badge" :class="config[f.key] ? 'badge-s' : 'badge-n'">
-                                        {{ config[f.key] ? '● ON' : '○ OFF' }}
-                                    </span>
+                                    <div class="stat-sub">Core capabilities</div>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Upstream summary -->
-                        <div class="card">
-                            <div class="card-head">
-                                <div>
-                                    <div class="card-title">DNS Upstreams</div>
-                                    <div class="card-desc">Resolver endpoints and timeout settings</div>
-                                </div>
-                                <span class="badge badge-i">{{ config.ECS_INJECTION_ENABLED ? 1 : 0 }}/1 active</span>
-                            </div>
-                            <div class="card-body">
-                                <table class="upstream-table">
-                                    <tr>
-                                        <td>Primary</td>
-                                        <td>{{ config.UPSTREAM_PRIMARY || '—' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Fallback</td>
-                                        <td>{{ config.UPSTREAM_FALLBACK || '—' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Geo-Bypass</td>
-                                        <td>{{ config.UPSTREAM_GEO_BYPASS || '—' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Timeout</td>
-                                        <td>{{ config.UPSTREAM_TIMEOUT }}ms</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Refresh Interval</td>
-                                        <td>{{ Math.round((config.ALL_LISTS_REFRESH_INTERVAL||3600000)/60000) }} min
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <!-- ======= FEATURES ======= -->
-                    <div v-if="tab==='features'">
-                        <div class="card">
-                            <div class="card-head">
-                                <div>
-                                    <div class="card-title">Core Features</div>
-                                    <div class="card-desc">Enable or disable major DNS gateway capabilities</div>
-                                </div>
-                                <span class="badge badge-i">{{ activeFeatureCount }}/{{ features.length }} active</span>
-                            </div>
-                            <div class="feat-table">
-                                <div v-for="f in features" :key="f.key" class="feat-row">
-                                    <div class="feat-info">
-                                        <div class="feat-name">{{ f.label }}</div>
-                                        <div class="feat-desc">{{ f.desc }}</div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Active Upstreams</div>
+                                    <div class="stat-value">{{ config.ECS_INJECTION_ENABLED ? 1 : 0 }}<small>/1</small>
                                     </div>
-                                    <div class="toggle" :class="{on: config[f.key], disabled: saving}" @click="toggleFeature(f.key)">
+                                    <div class="stat-sub">ECS capabilities (Upstreams)</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Active Filters</div>
+                                    <div class="stat-value">{{ activeFilterCount }}<small>/{{ filters.length }}</small>
                                     </div>
+                                    <div class="stat-sub">Query type filters</div>
+                                </div>
+                                <div class="stat-card ok">
+                                    <div class="stat-label">Blocklist</div>
+                                    <div class="stat-value">{{ fmt(stats.blocklistSize) }}</div>
+                                    <div class="stat-sub">Blocked domains (merged)</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Allowlist</div>
+                                    <div class="stat-value">{{ fmt(stats.allowlistSize) }}</div>
+                                    <div class="stat-sub">Allowed domains (merged)</div>
+                                </div>
+                                <div class="stat-card err">
+                                    <div class="stat-label">Private TLDs</div>
+                                    <div class="stat-value">{{ fmt(stats.privateTldsSize) }}</div>
+                                    <div class="stat-sub">Internal domains (merged)</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Mullvad</div>
+                                    <div class="stat-value">{{ stats.mullvadDomainsSize || 0 }}</div>
+                                    <div class="stat-sub">Upstream domains (merged)</div>
+                                </div>
+                                <div class="stat-card warn">
+                                    <div class="stat-label">Redirect Rules</div>
+                                    <div class="stat-value">{{ stats.redirectRulesSize || 0 }}</div>
+                                    <div class="stat-sub">CNAME overrides (merged)</div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- ======= QUERY FILTERS ======= -->
-                    <div v-if="tab==='filters'">
-                        <div class="card">
-                            <div class="card-head">
-                                <div>
-                                    <div class="card-title">Blocked Query Types</div>
-                                    <div class="card-desc">Block specific DNS record types at the edge before upstream
-                                        forwarding</div>
-                                </div>
-                                <span class="badge badge-i">{{ activeFilterCount }}/{{ filters.length }} active</span>
-                            </div>
-                            <div class="feat-table">
-                                <div v-for="f in filters" :key="f.key" class="feat-row">
-                                    <div class="feat-info">
-                                        <div class="feat-name">{{ f.label }}</div>
-                                        <div class="feat-desc">{{ f.desc }}</div>
-                                    </div>
-                                    <div class="toggle" :class="{on: config[f.key], disabled: saving}" @click="toggleFeature(f.key)">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ======= UPSTREAMS ======= -->
-                    <div v-if="tab==='upstreams'">
-                        <div class="card">
-                            <div class="card-head">
-                                <div class="card-title">DNS Upstream Servers</div>
-                                <span class="badge badge-i">{{ config.ECS_INJECTION_ENABLED ? 1 : 0 }}/1 active</span>
-                            </div>
-                            <div class="card-body">
-                                <div class="fg"><label class="fl">Primary Upstream</label><input class="fi fi-mono"
-                                        v-model="config.UPSTREAM_PRIMARY">
-                                    <div class="fh">Main DNS-over-HTTPS resolver (DoH)</div>
-                                </div>
-                                <div class="fg"><label class="fl">Fallback Upstream</label><input class="fi fi-mono"
-                                        v-model="config.UPSTREAM_FALLBACK">
-                                    <div class="fh">Used when primary times out or fails</div>
-                                </div>
-                                <div class="fg"><label class="fl">Geo-Bypass Upstream</label><input class="fi fi-mono"
-                                        v-model="config.UPSTREAM_GEO_BYPASS">
-                                    <div class="fh">Re-resolve without ECS for geo-blocked domains returning loopback
-                                    </div>
-                                </div>
-                                <div class="frow">
-                                    <div class="fg">
-                                        <label class="fl">Timeout (ms)</label>
-                                        <input class="fi" type="number" v-model.number="config.UPSTREAM_TIMEOUT">
-                                    </div>
-                                    <div class="fg">
-                                        <label class="fl">List Refresh Interval (ms)</label>
-                                        <input class="fi" type="number"
-                                            v-model.number="config.ALL_LISTS_REFRESH_INTERVAL">
-                                        <div class="fh">= {{
-                                            Math.round((config.ALL_LISTS_REFRESH_INTERVAL||3600000)/60000) }} minutes
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-head">
-                                <div class="card-title">ECS (EDNS Client Subnet)</div>
-                            </div>
-                            <div class="card-body">
-                                <div class="feat-row" style="padding: 0 0 16px 0; border-bottom: 1px solid var(--border-s); margin-bottom: 16px;">
-                                    <div class="feat-info">
-                                        <div class="feat-name">Enable ECS Injection</div>
-                                        <div class="feat-desc">Inject EDNS Client Subnet for CDN geo-optimization</div>
-                                    </div>
-                                    <div class="toggle" :class="{on: config.ECS_INJECTION_ENABLED, disabled: saving}" @click="toggleFeature('ECS_INJECTION_ENABLED')"></div>
-                                </div>
-                                <div class="frow">
-                                    <div class="fg">
-                                        <label class="fl">IPv4 Prefix Length</label>
-                                        <input class="fi" type="number" v-model.number="config.ECS_PREFIX_V4" min="1"
-                                            max="32">
-                                        <div class="fh">/{{ config.ECS_PREFIX_V4 || 24 }} mask sent to upstream</div>
-                                    </div>
-                                    <div class="fg">
-                                        <label class="fl">IPv6 Prefix Length</label>
-                                        <input class="fi" type="number" v-model.number="config.ECS_PREFIX_V6" min="1"
-                                            max="128">
-                                        <div class="fh">/{{ config.ECS_PREFIX_V6 || 48 }} mask sent to upstream</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button @click="saveUpstreams" class="btn btn-p">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-                                <polyline points="17 21 17 13 7 13 7 21" />
-                                <polyline points="7 3 7 8 15 8" />
-                            </svg>
-                            Save Upstream Settings
-                        </button>
-                    </div>
-
-                    <!-- ======= LISTS ======= -->
-                    <div v-if="tab==='lists'">
-                        <div v-if="!stats.hasKV" class="alert alert-w">
-                            ⚠️ KV not configured — custom domain lists require <code>DNS_GATEWAY_KV</code> binding.
-                            Changes won't persist.
-                        </div>
-
-                        <!-- Tab selector -->
-                        <div class="list-tabs">
-                            <div class="list-tab" :class="{active: listTab==='blocklist'}" @click="listTab='blocklist'">
-                                🚫 Blocklist
-                                <span class="lt-count">{{ (lists.blocklist||[]).length +
-                                    (customUrls.blocklist||[]).length }}</span>
-                            </div>
-                            <div class="list-tab" :class="{active: listTab==='allowlist'}" @click="listTab='allowlist'">
-                                ✅ Allowlist
-                                <span class="lt-count">{{ (lists.allowlist||[]).length +
-                                    (customUrls.allowlist||[]).length }}</span>
-                            </div>
-                            <div class="list-tab" :class="{active: listTab==='redirect_rules'}"
-                                @click="listTab='redirect_rules'">
-                                ↪ Redirect
-                                <span class="lt-count">{{ (lists.redirect_rules||[]).length }}</span>
-                            </div>
-                            <div class="list-tab" :class="{active: listTab==='private_tlds'}"
-                                @click="listTab='private_tlds'">
-                                🔒 Private TLDs
-                                <span class="lt-count">{{ (lists.private_tlds||[]).length }}</span>
-                            </div>
-                            <div class="list-tab" :class="{active: listTab==='mullvad_upstream'}"
-                                @click="listTab='mullvad_upstream'">
-                                🌐 Mullvad
-                                <span class="lt-count">{{ (lists.mullvad_upstream||[]).length }}</span>
-                            </div>
-                        </div>
-
-                        <div v-if="listsLoading" class="list-empty" style="margin-top: 40px">
-                            <div class="list-empty-icon">⏳</div>
-                            Loading lists...
-                        </div>
-                        <div v-else>
-                            <!-- REDIRECT RULES TAB -->
-                            <!-- SHARED RAW TEXT EDITOR -->
+                            <!-- Feature status table -->
                             <div class="card">
                                 <div class="card-head">
                                     <div>
-                                        <div class="card-title">Custom {{ listTabLabels[listTab] || 'Rules' }}</div>
-                                        <div class="card-desc" v-if="listTab==='blocklist' || listTab==='allowlist'">Matches domains exactly. Comments starting with # or ! are ignored.</div>
-                                        <div class="card-desc" v-else-if="listTab==='private_tlds'">Block internal domains or routers (e.g. "local" blocks domain.local). Uses raw text lines, so dots are not strictly required.</div>
-                                        <div class="card-desc" v-else-if="listTab==='mullvad_upstream'">Anonymous routing (no ECS) for specific domains (e.g. Github routes better via Mullvad than Google/CF).</div>
-                                        <div class="card-desc" v-else-if="listTab==='redirect_rules'">Custom DNS redirect/rewrite (CNAME overrides) — helps overcome network blocks by rewriting target domains.</div>
+                                        <div class="card-title">Feature Status</div>
+                                        <div class="card-desc">All toggleable features and filters at a glance</div>
                                     </div>
-                                    <span class="badge badge-d">{{ (lists[listTab]||[]).length }} active entries</span>
+                                    <span class="badge badge-i">{{ activeCount }}/{{ totalCount }} active</span>
                                 </div>
-                                <div class="card-body">
-                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                                        <div class="section-label" style="margin-bottom:0;">Raw Text Editor</div>
-                                        <button class="btn btn-p btn-sm" @click="saveListText" :disabled="!stats.hasKV || saving" style="padding: 4px 12px; font-weight: 600;">
-                                            {{ saving ? 'Saving...' : 'Save & Apply Config' }}
-                                        </button>
-                                    </div>
-                                    <div class="input-row" style="margin-bottom:16px;">
-                                        <textarea class="fi fi-mono" v-model="currentRawText"
-                                            :placeholder="textPlaceholders[listTab]"
-                                            :disabled="!stats.hasKV" rows="12" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-if="listTab==='redirect_rules'">
-                                <!-- Static source -->
-                                <div class="card">
-                                    <div class="card-head">
-                                        <div class="card-title">Static File Source</div>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="source-info">
-                                            <span class="source-path">{{ config.REDIRECT_RULES_URL }}</span>
-                                            <span class="badge badge-i">{{ stats.redirectRulesSize || 0 }} total
-                                                (merged)</span>
+                                <div class="feat-table">
+                                    <div v-for="f in allFeatures" :key="f.key" class="feat-row">
+                                        <div class="feat-info">
+                                            <div class="feat-name">{{ f.label }}</div>
+                                            <div class="feat-desc">{{ f.desc }}</div>
                                         </div>
-                                        <div class="fh" style="margin-top:10px">Static file + custom rules above are merged
-                                            at runtime.</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        <!-- External URL Subscriptions & Static Info (blocklist, allowlist, etc) -->
-                        <div v-else>
-
-                            <!-- External URL Subscriptions (blocklist/allowlist only) -->
-                            <div v-if="listTab==='blocklist' || listTab==='allowlist'" class="card">
-                                <div class="card-head">
-                                    <div>
-                                        <div class="card-title">External {{ listTabLabels[listTab] }} URLs</div>
-                                        <div class="card-desc">Subscribe to remote blocklists — AdBlock, hosts file, and
-                                            plain domain formats are supported. Comments starting with # are ignored.</div>
-                                    </div>
-                                    <span class="badge badge-i">{{ (customUrls[listTab]||[]).length }}
-                                        subscriptions</span>
-                                </div>
-                                <div class="card-body">
-                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                                        <div class="section-label" style="margin-bottom:0;">Raw Text Editor (URLs)</div>
-                                        <button class="btn btn-p btn-sm" @click="saveUrlText" :disabled="!stats.hasKV || savingUrl" style="padding: 4px 12px; font-weight: 600;">
-                                            {{ savingUrl ? 'Saving...' : 'Save & Fetch URLs' }}
-                                        </button>
-                                    </div>
-                                    <div class="input-row" style="margin-bottom:16px;">
-                                        <textarea class="fi fi-mono" v-model="currentRawUrlText"
-                                            :placeholder="urlPlaceholders[listTab]"
-                                            :disabled="!stats.hasKV" rows="5" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
-                                    </div>
-                                    <div class="fh" style="margin-top:10px; text-align: center;">Domains are auto-cleaned
-                                        (AdBlock/hosts/plain formats). Fetched and merged on next list refresh.</div>
-                                </div>
-                            </div>
-
-                            <!-- Static source info -->
-                            <div class="card">
-                                <div class="card-head">
-                                    <div class="card-title">Static File Source</div>
-                                </div>
-                                <div class="card-body">
-                                    <div class="source-info">
-                                        <span class="source-path">{{ listTab==='blocklist' ? config.BLOCKLIST_URL :
-                                            listTab==='allowlist' ? config.ALLOWLIST_URL : listTab==='private_tlds' ?
-                                            config.PRIVATE_TLD_URL : config.MULLVAD_UPSTREAM_URL }}</span>
-                                        <span class="badge badge-i">
-                                            {{ listTab==='blocklist' ? fmt(stats.blocklistSize) : listTab==='allowlist'
-                                            ? (stats.allowlistSize||0) : listTab==='private_tlds' ?
-                                            (stats.privateTldsSize||0) : (stats.mullvadDomainsSize||0) }} total (merged)
+                                        <span class="badge" :class="config[f.key] ? 'badge-s' : 'badge-n'">
+                                            {{ config[f.key] ? '● ON' : '○ OFF' }}
                                         </span>
                                     </div>
-                                    <div class="fh" style="margin-top:10px">Static file + external URLs + custom domains
-                                        above are all merged at runtime.</div>
+                                </div>
+                            </div>
+
+                            <!-- Upstream summary -->
+                            <div class="card">
+                                <div class="card-head">
+                                    <div>
+                                        <div class="card-title">DNS Upstreams</div>
+                                        <div class="card-desc">Resolver endpoints and timeout settings</div>
+                                    </div>
+                                    <span class="badge badge-i">{{ config.ECS_INJECTION_ENABLED ? 1 : 0 }}/1
+                                        active</span>
+                                </div>
+                                <div class="card-body">
+                                    <table class="upstream-table">
+                                        <tr>
+                                            <td>Primary</td>
+                                            <td>{{ config.UPSTREAM_PRIMARY || '—' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Fallback</td>
+                                            <td>{{ config.UPSTREAM_FALLBACK || '—' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Geo-Bypass</td>
+                                            <td>{{ config.UPSTREAM_GEO_BYPASS || '—' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Timeout</td>
+                                            <td>{{ config.UPSTREAM_TIMEOUT }}ms</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Refresh Interval</td>
+                                            <td>{{ Math.round((config.ALL_LISTS_REFRESH_INTERVAL||3600000)/60000) }} min
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- ======= FEATURES ======= -->
+                        <div v-if="tab==='features'">
+                            <div class="card">
+                                <div class="card-head">
+                                    <div>
+                                        <div class="card-title">Core Features</div>
+                                        <div class="card-desc">Enable or disable major DNS gateway capabilities</div>
+                                    </div>
+                                    <span class="badge badge-i">{{ activeFeatureCount }}/{{ features.length }}
+                                        active</span>
+                                </div>
+                                <div class="feat-table">
+                                    <div v-for="f in features" :key="f.key" class="feat-row">
+                                        <div class="feat-info">
+                                            <div class="feat-name">{{ f.label }}</div>
+                                            <div class="feat-desc">{{ f.desc }}</div>
+                                        </div>
+                                        <div class="toggle" :class="{on: config[f.key], disabled: saving}"
+                                            @click="toggleFeature(f.key)">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        </div> <!-- close listsLoading else -->
-                    </div>
+
+                        <!-- ======= QUERY FILTERS ======= -->
+                        <div v-if="tab==='filters'">
+                            <div class="card">
+                                <div class="card-head">
+                                    <div>
+                                        <div class="card-title">Blocked Query Types</div>
+                                        <div class="card-desc">Block specific DNS record types at the edge before
+                                            upstream
+                                            forwarding</div>
+                                    </div>
+                                    <span class="badge badge-i">{{ activeFilterCount }}/{{ filters.length }}
+                                        active</span>
+                                </div>
+                                <div class="feat-table">
+                                    <div v-for="f in filters" :key="f.key" class="feat-row">
+                                        <div class="feat-info">
+                                            <div class="feat-name">{{ f.label }}</div>
+                                            <div class="feat-desc">{{ f.desc }}</div>
+                                        </div>
+                                        <div class="toggle" :class="{on: config[f.key], disabled: saving}"
+                                            @click="toggleFeature(f.key)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ======= UPSTREAMS ======= -->
+                        <div v-if="tab==='upstreams'">
+                            <div class="card">
+                                <div class="card-head">
+                                    <div class="card-title">DNS Upstream Servers</div>
+                                    <span class="badge badge-i">{{ config.ECS_INJECTION_ENABLED ? 1 : 0 }}/1
+                                        active</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="fg"><label class="fl">Primary Upstream</label><input class="fi fi-mono"
+                                            v-model="config.UPSTREAM_PRIMARY">
+                                        <div class="fh">Main DNS-over-HTTPS resolver (DoH)</div>
+                                    </div>
+                                    <div class="fg"><label class="fl">Fallback Upstream</label><input class="fi fi-mono"
+                                            v-model="config.UPSTREAM_FALLBACK">
+                                        <div class="fh">Used when primary times out or fails</div>
+                                    </div>
+                                    <div class="fg"><label class="fl">Geo-Bypass Upstream</label><input
+                                            class="fi fi-mono" v-model="config.UPSTREAM_GEO_BYPASS">
+                                        <div class="fh">Re-resolve without ECS for geo-blocked domains returning
+                                            loopback
+                                        </div>
+                                    </div>
+                                    <div class="frow">
+                                        <div class="fg">
+                                            <label class="fl">Timeout (ms)</label>
+                                            <input class="fi" type="number" v-model.number="config.UPSTREAM_TIMEOUT">
+                                        </div>
+                                        <div class="fg">
+                                            <label class="fl">List Refresh Interval (ms)</label>
+                                            <input class="fi" type="number"
+                                                v-model.number="config.ALL_LISTS_REFRESH_INTERVAL">
+                                            <div class="fh">= {{
+                                                Math.round((config.ALL_LISTS_REFRESH_INTERVAL||3600000)/60000) }}
+                                                minutes
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-head">
+                                    <div class="card-title">ECS (EDNS Client Subnet)</div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="feat-row"
+                                        style="padding: 0 0 16px 0; border-bottom: 1px solid var(--border-s); margin-bottom: 16px;">
+                                        <div class="feat-info">
+                                            <div class="feat-name">Enable ECS Injection</div>
+                                            <div class="feat-desc">Inject EDNS Client Subnet for CDN geo-optimization
+                                            </div>
+                                        </div>
+                                        <div class="toggle"
+                                            :class="{on: config.ECS_INJECTION_ENABLED, disabled: saving}"
+                                            @click="toggleFeature('ECS_INJECTION_ENABLED')"></div>
+                                    </div>
+                                    <div class="frow">
+                                        <div class="fg">
+                                            <label class="fl">IPv4 Prefix Length</label>
+                                            <input class="fi" type="number" v-model.number="config.ECS_PREFIX_V4"
+                                                min="1" max="32">
+                                            <div class="fh">/{{ config.ECS_PREFIX_V4 || 24 }} mask sent to upstream
+                                            </div>
+                                        </div>
+                                        <div class="fg">
+                                            <label class="fl">IPv6 Prefix Length</label>
+                                            <input class="fi" type="number" v-model.number="config.ECS_PREFIX_V6"
+                                                min="1" max="128">
+                                            <div class="fh">/{{ config.ECS_PREFIX_V6 || 48 }} mask sent to upstream
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button @click="saveUpstreams" class="btn btn-p">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                                    <polyline points="17 21 17 13 7 13 7 21" />
+                                    <polyline points="7 3 7 8 15 8" />
+                                </svg>
+                                Save Upstream Settings
+                            </button>
+                        </div>
+
+                        <!-- ======= LISTS ======= -->
+                        <div v-if="tab==='lists'">
+                            <div v-if="!stats.hasKV" class="alert alert-w">
+                                ⚠️ KV not configured — custom domain lists require <code>DNS_GATEWAY_KV</code> binding.
+                                Changes won't persist.
+                            </div>
+
+                            <!-- Tab selector -->
+                            <div class="list-tabs">
+                                <div class="list-tab" :class="{active: listTab==='blocklist'}"
+                                    @click="listTab='blocklist'">
+                                    🚫 Blocklist
+                                    <span class="lt-count">{{ (lists.blocklist||[]).length +
+                                        (customUrls.blocklist||[]).length }}</span>
+                                </div>
+                                <div class="list-tab" :class="{active: listTab==='allowlist'}"
+                                    @click="listTab='allowlist'">
+                                    ✅ Allowlist
+                                    <span class="lt-count">{{ (lists.allowlist||[]).length +
+                                        (customUrls.allowlist||[]).length }}</span>
+                                </div>
+                                <div class="list-tab" :class="{active: listTab==='redirect_rules'}"
+                                    @click="listTab='redirect_rules'">
+                                    ↪ Redirect
+                                    <span class="lt-count">{{ (lists.redirect_rules||[]).length }}</span>
+                                </div>
+                                <div class="list-tab" :class="{active: listTab==='private_tlds'}"
+                                    @click="listTab='private_tlds'">
+                                    🔒 Private TLDs
+                                    <span class="lt-count">{{ (lists.private_tlds||[]).length }}</span>
+                                </div>
+                                <div class="list-tab" :class="{active: listTab==='mullvad_upstream'}"
+                                    @click="listTab='mullvad_upstream'">
+                                    🌐 Mullvad
+                                    <span class="lt-count">{{ (lists.mullvad_upstream||[]).length }}</span>
+                                </div>
+                            </div>
+
+                            <div v-if="listsLoading" class="list-empty" style="margin-top: 40px">
+                                <div class="list-empty-icon">⏳</div>
+                                Loading lists...
+                            </div>
+                            <div v-else>
+                                <!-- REDIRECT RULES TAB -->
+                                <!-- SHARED RAW TEXT EDITOR -->
+                                <div class="card">
+                                    <div class="card-head">
+                                        <div>
+                                            <div class="card-title">Custom {{ listTabLabels[listTab] || 'Rules' }}</div>
+                                            <div class="card-desc"
+                                                v-if="listTab==='blocklist' || listTab==='allowlist'">Matches domains
+                                                exactly. Comments starting with # or ! are ignored.</div>
+                                            <div class="card-desc" v-else-if="listTab==='private_tlds'">Block internal
+                                                domains or routers (e.g. "local" blocks domain.local). Uses raw text
+                                                lines, so dots are not strictly required.</div>
+                                            <div class="card-desc" v-else-if="listTab==='mullvad_upstream'">Anonymous
+                                                routing (no ECS) for specific domains (e.g. Github routes better via
+                                                Mullvad than Google/CF).</div>
+                                            <div class="card-desc" v-else-if="listTab==='redirect_rules'">Custom DNS
+                                                redirect/rewrite (CNAME overrides) — helps overcome network blocks by
+                                                rewriting target domains.</div>
+                                        </div>
+                                        <span class="badge badge-d">{{ (lists[listTab]||[]).length }} active
+                                            entries</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div
+                                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                            <div class="section-label" style="margin-bottom:0;">Raw Text Editor</div>
+                                            <button class="btn btn-p btn-sm" @click="saveListText"
+                                                :disabled="!stats.hasKV || saving"
+                                                style="padding: 4px 12px; font-weight: 600;">
+                                                {{ saving ? 'Saving...' : 'Save & Apply Config' }}
+                                            </button>
+                                        </div>
+                                        <div class="input-row" style="margin-bottom:16px;">
+                                            <textarea class="fi fi-mono" v-model="currentRawText"
+                                                :placeholder="textPlaceholders[listTab]" :disabled="!stats.hasKV"
+                                                rows="12"
+                                                style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="listTab==='redirect_rules'">
+                                    <!-- Static source -->
+                                    <div class="card">
+                                        <div class="card-head">
+                                            <div class="card-title">Static File Source</div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="source-info">
+                                                <span class="source-path">{{ config.REDIRECT_RULES_URL }}</span>
+                                                <span class="badge badge-i">{{ stats.redirectRulesSize || 0 }} total
+                                                    (merged)</span>
+                                            </div>
+                                            <div class="fh" style="margin-top:10px">Static file + custom rules above are
+                                                merged
+                                                at runtime.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- External URL Subscriptions & Static Info (blocklist, allowlist, etc) -->
+                                <div v-else>
+
+                                    <!-- External URL Subscriptions (blocklist/allowlist only) -->
+                                    <div v-if="listTab==='blocklist' || listTab==='allowlist'" class="card">
+                                        <div class="card-head">
+                                            <div>
+                                                <div class="card-title">External {{ listTabLabels[listTab] }} URLs</div>
+                                                <div class="card-desc">Subscribe to remote blocklists — AdBlock, hosts
+                                                    file, and
+                                                    plain domain formats are supported. Comments starting with # are
+                                                    ignored.</div>
+                                            </div>
+                                            <span class="badge badge-i">{{ (customUrls[listTab]||[]).length }}
+                                                subscriptions</span>
+                                        </div>
+                                        <div class="card-body">
+                                            <div
+                                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                                <div class="section-label" style="margin-bottom:0;">Raw Text Editor
+                                                    (URLs)</div>
+                                                <button class="btn btn-p btn-sm" @click="saveUrlText"
+                                                    :disabled="!stats.hasKV || savingUrl"
+                                                    style="padding: 4px 12px; font-weight: 600;">
+                                                    {{ savingUrl ? 'Saving...' : 'Save & Fetch URLs' }}
+                                                </button>
+                                            </div>
+                                            <div class="input-row" style="margin-bottom:16px;">
+                                                <textarea class="fi fi-mono" v-model="currentRawUrlText"
+                                                    :placeholder="urlPlaceholders[listTab]" :disabled="!stats.hasKV"
+                                                    rows="5"
+                                                    style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
+                                            </div>
+                                            <div class="fh" style="margin-top:10px; text-align: center;">Domains are
+                                                auto-cleaned
+                                                (AdBlock/hosts/plain formats). Fetched and merged on next list refresh.
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Static source info -->
+                                    <div class="card">
+                                        <div class="card-head">
+                                            <div class="card-title">Static File Source</div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="source-info">
+                                                <span class="source-path">{{ listTab==='blocklist' ?
+                                                    config.BLOCKLIST_URL :
+                                                    listTab==='allowlist' ? config.ALLOWLIST_URL :
+                                                    listTab==='private_tlds' ?
+                                                    config.PRIVATE_TLD_URL : config.MULLVAD_UPSTREAM_URL }}</span>
+                                                <span class="badge badge-i">
+                                                    {{ listTab==='blocklist' ? fmt(stats.blocklistSize) :
+                                                    listTab==='allowlist'
+                                                    ? (stats.allowlistSize||0) : listTab==='private_tlds' ?
+                                                    (stats.privateTldsSize||0) : (stats.mullvadDomainsSize||0) }} total
+                                                    (merged)
+                                                </span>
+                                            </div>
+                                            <div class="fh" style="margin-top:10px">Static file + external URLs + custom
+                                                domains
+                                                above are all merged at runtime.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div> <!-- close listsLoading else -->
+                        </div>
 
                     </div><!-- /content-inner -->
                 </div><!-- /content -->
@@ -1630,7 +1687,7 @@
     </div><!-- /#app -->
 
     <script>
-        const { createApp, ref, computed, onMounted, watch } = Vue;
+        const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
         createApp({
             setup() {
                 const appState = ref('loading');
@@ -1662,7 +1719,9 @@
                 const syncing = ref(false);
                 const currentRawText = ref('');
                 const currentRawUrlText = ref('');
+                const newUrl = ref('');
                 const savingUrl = ref(false);
+                const savingList = ref(false);
 
                 // Toast
                 const toastMsg = ref(''); const toastType = ref('success');
@@ -1672,7 +1731,8 @@
                 };
 
                 const sysTime = ref(Date.now());
-                setInterval(() => sysTime.value = Date.now(), 60000);
+                let sysTimer = setInterval(() => sysTime.value = Date.now(), 60000);
+                onUnmounted(() => clearInterval(sysTimer));
 
                 const fmt = n => n ? Number(n).toLocaleString() : '0';
                 const timeAgo = iso => {
@@ -1698,7 +1758,7 @@
                     private_tlds: 'Private TLDs',
                     mullvad_upstream: 'Mullvad Upstream'
                 };
-                
+
                 const textPlaceholders = {
                     blocklist: '# Example config with comments\n# Tracking servers\nads.example.com\napi.tracker.com',
                     allowlist: '# Allowed domains (ignores blocklist)\nanalytics.mycompany.com\nsale.event.com',
@@ -1833,20 +1893,20 @@
                     finally { saving.value = false; }
                 };
 
-                const toggleFeature = k => { 
+                const toggleFeature = k => {
                     if (saving.value) return;
-                    const u = { ...config.value, [k]: !config.value[k] }; 
-                    updateConfig(u); 
+                    const u = { ...config.value, [k]: !config.value[k] };
+                    updateConfig(u);
                 };
 
                 const saveUpstreams = () => updateConfig({
                     UPSTREAM_PRIMARY: config.value.UPSTREAM_PRIMARY,
                     UPSTREAM_FALLBACK: config.value.UPSTREAM_FALLBACK,
                     UPSTREAM_GEO_BYPASS: config.value.UPSTREAM_GEO_BYPASS,
-                    UPSTREAM_TIMEOUT: parseInt(config.value.UPSTREAM_TIMEOUT) || 5000,
+                    UPSTREAM_TIMEOUT: Math.max(500, parseInt(config.value.UPSTREAM_TIMEOUT) || 5000),
                     ECS_PREFIX_V4: parseInt(config.value.ECS_PREFIX_V4) || 24,
                     ECS_PREFIX_V6: parseInt(config.value.ECS_PREFIX_V6) || 48,
-                    ALL_LISTS_REFRESH_INTERVAL: parseInt(config.value.ALL_LISTS_REFRESH_INTERVAL) || 3600000,
+                    ALL_LISTS_REFRESH_INTERVAL: Math.max(60000, parseInt(config.value.ALL_LISTS_REFRESH_INTERVAL) || 3600000),
                 });
 
                 // ===== LISTS =====
@@ -1854,14 +1914,12 @@
                     const l = lists.value;
                     const cUrls = customUrls.value;
                     const lt = listTab.value;
-                    
-                    if (l[lt + '_text']) {
-                        currentRawText.value = l[lt + '_text'];
-                    } else if (l[lt]) {
+
+                    if (l[lt]) {
                         if (lt === 'redirect_rules') {
-                           currentRawText.value = l[lt].map(r => `${r.source} ${r.target}`).join('\n');
+                            currentRawText.value = l[lt].map(r => `${r.source} ${r.target}`).join('\n');
                         } else {
-                           currentRawText.value = l[lt].join('\n');
+                            currentRawText.value = l[lt].join('\n');
                         }
                     } else {
                         currentRawText.value = '';
@@ -1910,9 +1968,9 @@
                     if (savingUrl.value) return;
                     savingUrl.value = true;
                     try {
-                        const res = await apiFetch('/api/urls/save', { 
-                            method: 'POST', 
-                            body: JSON.stringify({ type: listTab.value, text: currentRawUrlText.value }) 
+                        const res = await apiFetch('/api/urls/save', {
+                            method: 'POST',
+                            body: JSON.stringify({ type: listTab.value, text: currentRawUrlText.value })
                         });
                         if (res.ok) {
                             const data = await res.json();
@@ -1953,9 +2011,9 @@
                     if (saving.value) return;
                     saving.value = true;
                     try {
-                        const res = await apiFetch('/api/lists/save', { 
-                            method: 'POST', 
-                            body: JSON.stringify({ type: listTab.value, text: currentRawText.value }) 
+                        const res = await apiFetch('/api/lists/save', {
+                            method: 'POST',
+                            body: JSON.stringify({ type: listTab.value, text: currentRawText.value })
                         });
                         if (res.ok) {
                             const data = await res.json();
@@ -2000,13 +2058,14 @@
                 return {
                     appState, tab, token, adminUsername, config, stats,
                     loginUser, loginPass, regUser, regPass, regPass2, authError,
-                    lists, listTab, customUrls, currentRawText, currentRawUrlText,
-                    saving, savingUrl, listsLoading, toastMsg, toastType,
+                    lists, listTab, customUrls, currentRawText, currentRawUrlText, newUrl,
+                    saving, savingUrl, savingList, syncing, listsLoading, toastMsg, toastType,
                     tabLabels, listTabLabels, textPlaceholders, urlPlaceholders,
                     features, filters, allFeatures,
                     activeFeatureCount, activeFilterCount, activeCount, totalCount, totalCustomEntries,
                     register, login, logout, toggleFeature, saveUpstreams,
                     switchToLists, loadLists, saveListText, saveUrlText, forceSync,
+                    addUrl, removeUrl,
                     fmt, timeAgo, showToast, theme, toggleTheme
                 };
             }
