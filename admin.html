@@ -13,7 +13,32 @@
 
         :root {
             --sidebar-w: 240px;
+            --bg-canvas: #f6f8fa;
+            --bg-sidebar: #f6f8fa;
+            --bg-1: #ffffff;
+            --bg-2: #f3f4f6;
+            --bg-3: #e1e4e8;
+            --border: #d0d7de;
+            --border-s: #e1e4e8;
+            --text-1: #24292f;
+            --text-2: #57606a;
+            --text-3: #8c959f;
+            --accent: #0969da;
+            --accent-em: #0969da;
+            --accent-m: rgba(9, 105, 218, 0.1);
+            --ok: #2da44e;
+            --ok-m: rgba(45, 164, 78, 0.15);
+            --err: #cf222e;
+            --err-m: rgba(207, 34, 46, 0.15);
+            --warn: #bf8700;
+            --warn-m: rgba(210, 153, 34, 0.15);
+            --r: 8px;
+            --tr: 0.18s ease;
+        }
+
+        [data-theme="dark"] {
             --bg-canvas: #0d1117;
+            --bg-sidebar: #010409;
             --bg-1: #161b22;
             --bg-2: #21262d;
             --bg-3: #30363d;
@@ -31,8 +56,6 @@
             --err-m: rgba(248, 81, 73, 0.15);
             --warn: #d29922;
             --warn-m: rgba(210, 153, 34, 0.15);
-            --r: 8px;
-            --tr: 0.18s ease;
         }
 
         *,
@@ -60,7 +83,7 @@
         /* ===== SIDEBAR ===== */
         .sidebar {
             width: var(--sidebar-w);
-            background: #010409;
+            background: var(--bg-sidebar);
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
@@ -122,7 +145,7 @@
 
         .nav-item:hover {
             color: var(--text-1);
-            background: rgba(255, 255, 255, 0.04);
+            background: var(--accent-m);
         }
 
         .nav-item.active {
@@ -256,6 +279,11 @@
         .content {
             flex: 1;
             overflow-y: auto;
+        }
+
+        .content-inner {
+            max-width: 1200px;
+            margin: 0 auto;
             padding: 24px 28px;
         }
 
@@ -341,7 +369,7 @@
             align-items: center;
             padding: 16px 20px;
             border-bottom: 1px solid var(--border);
-            background: rgba(255, 255, 255, 0.01);
+            background: var(--bg-2);
         }
 
         .card-title {
@@ -1174,6 +1202,9 @@
                 <header class="topbar">
                     <h2>{{ tabLabels[tab] }}</h2>
                     <div class="topbar-right">
+                        <button class="btn" @click="toggleTheme" title="Toggle Light/Dark Theme" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
+                            {{ theme === 'light' ? '🌙' : '☀️' }}
+                        </button>
                         <span v-if="stats.hasKV" class="badge badge-s">
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                 <circle cx="12" cy="12" r="12" />
@@ -1185,6 +1216,7 @@
                 </header>
 
                 <div class="content">
+                    <div class="content-inner">
 
                     <!-- ======= DASHBOARD ======= -->
                     <div v-if="tab==='dashboard'">
@@ -1638,6 +1670,7 @@
                         </div> <!-- close listsLoading else -->
                     </div>
 
+                    </div><!-- /content-inner -->
                 </div><!-- /content -->
             </div><!-- /main -->
         </div><!-- /app -->
@@ -1648,10 +1681,18 @@
     </div><!-- /#app -->
 
     <script>
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted, watch } = Vue;
         createApp({
             setup() {
                 const appState = ref('loading');
+                const theme = ref(localStorage.getItem('dnsadm_theme') || 'light');
+                watch(theme, (newVal) => {
+                    document.documentElement.setAttribute('data-theme', newVal);
+                    localStorage.setItem('dnsadm_theme', newVal);
+                }, { immediate: true });
+                const toggleTheme = () => {
+                    theme.value = theme.value === 'light' ? 'dark' : 'light';
+                };
                 const tab = ref('dashboard');
                 const token = ref(localStorage.getItem('dnsadm_token') || '');
                 const adminUsername = ref('');
@@ -1959,7 +2000,7 @@
                     activeFeatureCount, activeFilterCount, activeCount, totalCount, totalCustomEntries,
                     register, login, logout, toggleFeature, saveUpstreams,
                     switchToLists, loadLists, addDomain, addRedirect, removeEntry, addUrl, removeUrl,
-                    fmt, timeAgo, showToast
+                    fmt, timeAgo, showToast, theme, toggleTheme
                 };
             }
         }).mount('#app');
