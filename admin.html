@@ -2056,6 +2056,11 @@
                             const d = await res.json();
                             config.value = d.config;
                             stats.value = d.stats;
+                            if (d.stats && d.stats.hasAuth === false) {
+                                adminUsername.value = '';
+                            } else if (d.stats && d.stats.adminUsername) {
+                                adminUsername.value = d.stats.adminUsername;
+                            }
                             if (d.stats.needsSetup) { appState.value = 'setup'; }
                             else { appState.value = 'admin'; }
                         } else if (res.status === 401) { appState.value = 'login'; }
