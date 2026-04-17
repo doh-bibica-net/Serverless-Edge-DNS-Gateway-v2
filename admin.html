@@ -1602,13 +1602,13 @@
                                         (lists[listTab]||[]).length }} entries</span>
                                 </div>
                                 <div class="card-body">
-                                    <div class="section-label">Add Domain</div>
-                                    <div class="input-row" style="margin-bottom:16px">
-                                        <input class="fi fi-mono" v-model="newDomain"
-                                            :placeholder="listTab==='allowlist' ? 'e.g. allowed.example.com' : 'e.g. ads.example.com'"
-                                            @keyup.enter="addDomain" :disabled="!stats.hasKV">
+                                    <div class="section-label">Add Domain(s)</div>
+                                    <div class="input-row" style="margin-bottom:16px; align-items: flex-start;">
+                                        <textarea class="fi fi-mono" v-model="newDomain"
+                                            :placeholder="listTab==='allowlist' ? 'Enter domains (newline separated)\ne.g.\nallowed.example.com\napi.example.net' : 'Enter domains (newline separated)\ne.g.\nads.example.com\ntracking.example.net'"
+                                            :disabled="!stats.hasKV" rows="4" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box;"></textarea>
                                         <button class="btn btn-p btn-sm" @click="addDomain"
-                                            :disabled="!stats.hasKV">Add</button>
+                                            :disabled="!stats.hasKV" style="margin-top: 2px;">Add</button>
                                     </div>
                                     <div class="section-label">Domain List ({{ (lists[listTab]||[]).length }})</div>
                                     <div class="domain-list">
@@ -1952,17 +1952,39 @@
                 };
 
                 const addDomain = async () => {
-                    const d = newDomain.value.trim().toLowerCase();
-                    if (!d) return;
+                    if (!newDomain.value.trim()) return;
+                    
+                    const rawLines = newDomain.value.split(/[\n, ]+/);
+                    const entries = [];
+                    let skipped = 0;
+                    
+                    for (let d of rawLines) {
+                        d = d.trim().toLowerCase();
+                        if (!d) continue;
+                        
+                        // Strict validation: exact match domains (Blocklist/Allowlist) typically require a dot
+                        if ((listTab.value === 'blocklist' || listTab.value === 'allowlist') && !d.includes('.')) {
+                            skipped++;
+                            continue;
+                        }
+                        
+                        entries.push(d);
+                    }
+                    
+                    if (!entries.length) {
+                        showToast(skipped > 0 ? 'All entered domains were invalid (missing dots?)' : 'No valid domains found', 'error');
+                        return;
+                    }
+
                     try {
-                        const res = await apiFetch('/api/lists/add', { method: 'POST', body: JSON.stringify({ type: listTab.value, entries: [d] }) });
+                        const res = await apiFetch('/api/lists/add', { method: 'POST', body: JSON.stringify({ type: listTab.value, entries }) });
                         if (res.ok) {
                             const data = await res.json();
                             lists.value = data.lists;
                             newDomain.value = '';
-                            showToast('Domain added');
+                            showToast(`Added ${entries.length} domain${entries.length > 1 ? 's' : ''}` + (skipped > 0 ? ` (${skipped} skipped)` : ''));
                             refreshStats();
-                        } else showToast('Failed to add domain', 'error');
+                        } else showToast('Failed to add domains', 'error');
                     } catch (e) { showToast('Network error', 'error'); }
                 };
 
