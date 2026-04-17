@@ -1146,6 +1146,15 @@ async function handleRequest(request, context) {
       return new Response(JSON.stringify(custom), { headers: apiHeaders });
     }
 
+    // POST /api/sync — Force pull latest lists and sync all nodes
+    if (path === '/api/sync' && request.method === 'POST') {
+      await triggerListSync(context.env);
+      if (AD_BLOCK_ENABLED || BLOCK_PRIVATE_TLD || DNS_REDIRECT_ENABLED || MULLVAD_UPSTREAM_ENABLED) {
+        await ensureBlocklistsLoaded(request.url, context);
+      }
+      return new Response(JSON.stringify({ ok: true, stats: getCurrentStats(context.env, adminUser) }), { headers: apiHeaders });
+    }
+
     // POST /api/lists/add — Add entries to a list
     if (path === '/api/lists/add' && request.method === 'POST') {
       if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
