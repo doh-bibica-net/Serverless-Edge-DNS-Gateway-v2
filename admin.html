@@ -1526,100 +1526,51 @@
                         </div>
                         <div v-else>
                             <!-- REDIRECT RULES TAB -->
+                            <!-- SHARED RAW TEXT EDITOR -->
+                            <div class="card">
+                                <div class="card-head">
+                                    <div>
+                                        <div class="card-title">Custom {{ listTabLabels[listTab] || 'Rules' }}</div>
+                                        <div class="card-desc" v-if="listTab==='blocklist' || listTab==='allowlist'">Matches domains exactly. Comments starting with # or ! are ignored.</div>
+                                        <div class="card-desc" v-else-if="listTab==='private_tlds'">Matches domain suffix (e.g. "local" blocks "domain.local"). Comments starting with # are ignored.</div>
+                                        <div class="card-desc" v-else-if="listTab==='mullvad_upstream'">Matches domain suffix to route through Mullvad. Comments starting with # are ignored.</div>
+                                        <div class="card-desc" v-else-if="listTab==='redirect_rules'">DNS CNAME overrides — Format: source target (Exact match only). Comments starting with # are ignored.</div>
+                                    </div>
+                                    <span class="badge badge-d">{{ (lists[listTab]||[]).length }} active entries</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="section-label">Raw Text Editor</div>
+                                    <div class="input-row" style="margin-bottom:16px;">
+                                        <textarea class="fi fi-mono" v-model="currentRawText"
+                                            :placeholder="listTab==='redirect_rules' ? '# Format: source.com target.com\nrouter.local 192.168.1.1\n\n# Blocked trackers\nads.example.com 0.0.0.0' : '# Example config with comments\n# Tracking servers\nads.example.com\napi.tracker.com'"
+                                            :disabled="!stats.hasKV" rows="12" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
+                                    </div>
+                                    <button class="btn btn-p" @click="saveListText" :disabled="!stats.hasKV || saving" style="width: 100%; padding: 10px; font-weight: 600;">
+                                        {{ saving ? 'Saving...' : 'Save & Apply Config' }}
+                                    </button>
+                                </div>
+                            </div>
+
                             <div v-if="listTab==='redirect_rules'">
+                                <!-- Static source -->
                                 <div class="card">
-                                <div class="card-head">
-                                    <div>
-                                        <div class="card-title">Custom Redirect Rules</div>
-                                        <div class="card-desc">DNS CNAME overrides — queries for source domain return a
-                                            CNAME to target (Exact match only)</div>
+                                    <div class="card-head">
+                                        <div class="card-title">Static File Source</div>
                                     </div>
-                                    <span class="badge badge-i">{{ (lists.redirect_rules||[]).length }} rules</span>
-                                </div>
-                                <div class="card-body">
-                                    <div class="section-label">Add Rule(s)</div>
-                                    <div class="input-row" style="margin-bottom:16px; align-items: flex-start;">
-                                        <textarea class="fi fi-mono" v-model="newRedirSource"
-                                            placeholder="Enter rules (newline separated) Format: source target&#10;e.g.&#10;router.local 192.168.1.1&#10;ads.example.com block.local"
-                                            :disabled="!stats.hasKV" rows="4" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box;"></textarea>
-                                        <button class="btn btn-p btn-sm" @click="addRedirect"
-                                            :disabled="!stats.hasKV" style="margin-top: 2px;">Add</button>
-                                    </div>
-                                    <div class="section-label">Rules ({{ (lists.redirect_rules||[]).length }})</div>
-                                    <div class="domain-list">
-                                        <div v-if="!(lists.redirect_rules||[]).length" class="list-empty">
-                                            <div class="list-empty-icon">↪</div>
-                                            No redirect rules — add a source → target pair above
+                                    <div class="card-body">
+                                        <div class="source-info">
+                                            <span class="source-path">{{ config.REDIRECT_RULES_URL }}</span>
+                                            <span class="badge badge-i">{{ stats.redirectRulesSize || 0 }} total
+                                                (merged)</span>
                                         </div>
-                                        <div v-for="r in (lists.redirect_rules||[])" :key="r.source"
-                                            class="domain-item">
-                                            <span class="domain-item-text">
-                                                <span style="color:var(--err)">{{ r.source }}</span>
-                                                <span style="color:var(--text-3);margin:0 8px">→</span>
-                                                <span style="color:var(--ok)">{{ r.target }}</span>
-                                            </span>
-                                            <button class="domain-remove"
-                                                @click="removeEntry('redirect_rules', r.source)"
-                                                title="Remove">✕</button>
-                                        </div>
+                                        <div class="fh" style="margin-top:10px">Static file + custom rules above are merged
+                                            at runtime.</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Static source -->
-                            <div class="card">
-                                <div class="card-head">
-                                    <div class="card-title">Static File Source</div>
-                                </div>
-                                <div class="card-body">
-                                    <div class="source-info">
-                                        <span class="source-path">{{ config.REDIRECT_RULES_URL }}</span>
-                                        <span class="badge badge-i">{{ stats.redirectRulesSize || 0 }} total
-                                            (merged)</span>
-                                    </div>
-                                    <div class="fh" style="margin-top:10px">Static file + custom rules above are merged
-                                        at runtime.</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- DOMAIN LIST TABS (blocklist, allowlist, private_tlds, mullvad_upstream) -->
+                        <!-- External URL Subscriptions & Static Info (blocklist, allowlist, etc) -->
                         <div v-else>
-                            <!-- Manual domain entry -->
-                            <div class="card">
-                                <div class="card-head">
-                                    <div>
-                                        <div class="card-title">Custom {{ listTabLabels[listTab] }} Domains</div>
-                                        <div class="card-desc" v-if="listTab==='blocklist' || listTab==='allowlist'">Manually added domains — exact match only</div>
-                                        <div class="card-desc" v-else-if="listTab==='private_tlds'">Manually added domains — suffix match (e.g. "local" blocks "domain.local")</div>
-                                        <div class="card-desc" v-else-if="listTab==='mullvad_upstream'">Manually added domains — suffix match (e.g. "bibica.net" routes "a.bibica.net")</div>
-                                    </div>
-                                    <span class="badge" :class="listTab==='allowlist'?'badge-s':'badge-d'">{{
-                                        (lists[listTab]||[]).length }} entries</span>
-                                </div>
-                                <div class="card-body">
-                                    <div class="section-label">Add Domain(s)</div>
-                                    <div class="input-row" style="margin-bottom:16px; align-items: flex-start;">
-                                        <textarea class="fi fi-mono" v-model="newDomain"
-                                            :placeholder="listTab==='allowlist' ? 'Enter domains (newline separated)\ne.g.\nallowed.example.com\napi.example.net' : 'Enter domains (newline separated)\ne.g.\nads.example.com\ntracking.example.net'"
-                                            :disabled="!stats.hasKV" rows="4" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box;"></textarea>
-                                        <button class="btn btn-p btn-sm" @click="addDomain"
-                                            :disabled="!stats.hasKV" style="margin-top: 2px;">Add</button>
-                                    </div>
-                                    <div class="section-label">Domain List ({{ (lists[listTab]||[]).length }})</div>
-                                    <div class="domain-list">
-                                        <div v-if="!(lists[listTab]||[]).length" class="list-empty">
-                                            <div class="list-empty-icon">{{ listTab==='allowlist' ? '✅' : '🚫' }}</div>
-                                            No custom entries — domains from static file are loaded automatically
-                                        </div>
-                                        <div v-for="d in (lists[listTab]||[])" :key="d" class="domain-item">
-                                            <span class="domain-item-text">{{ d }}</span>
-                                            <button class="domain-remove" @click="removeEntry(listTab, d)"
-                                                title="Remove">✕</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
                             <!-- External URL Subscriptions (blocklist/allowlist only) -->
                             <div v-if="listTab==='blocklist' || listTab==='allowlist'" class="card">
@@ -1727,9 +1678,7 @@
                 const listsLoading = ref(false);
                 const syncing = ref(false);
                 const newUrl = ref('');
-                const newDomain = ref('');
-                const newRedirSource = ref('');
-                const newRedirTarget = ref('');
+                const currentRawText = ref('');
 
                 // Toast
                 const toastMsg = ref(''); const toastType = ref('success');
@@ -1899,11 +1848,32 @@
                 });
 
                 // ===== LISTS =====
+                const reloadCurrentRawText = () => {
+                    const l = lists.value;
+                    const lt = listTab.value;
+                    if (l[lt + '_text']) {
+                        currentRawText.value = l[lt + '_text'];
+                    } else if (l[lt]) {
+                        if (lt === 'redirect_rules') {
+                           currentRawText.value = l[lt].map(r => `${r.source} ${r.target}`).join('\n');
+                        } else {
+                           currentRawText.value = l[lt].join('\n');
+                        }
+                    } else {
+                        currentRawText.value = '';
+                    }
+                };
+
+                watch(listTab, () => {
+                    reloadCurrentRawText();
+                });
+
                 const loadLists = async () => {
                     listsLoading.value = true;
                     try {
                         try { const res = await apiFetch('/api/lists'); if (res.ok) lists.value = await res.json(); } catch { }
                         try { const res = await apiFetch('/api/urls'); if (res.ok) customUrls.value = await res.json(); } catch { }
+                        reloadCurrentRawText();
                     } finally {
                         listsLoading.value = false;
                     }
@@ -1947,93 +1917,22 @@
                     } catch (e) { showToast('Network error', 'error'); }
                 };
 
-                const addDomain = async () => {
-                    if (!newDomain.value.trim()) return;
-                    
-                    const rawLines = newDomain.value.split(/[\n, ]+/);
-                    const entries = [];
-                    let skipped = 0;
-                    
-                    for (let d of rawLines) {
-                        d = d.trim().toLowerCase();
-                        if (!d) continue;
-                        
-                        // Strict validation: domains typically require a dot, except Private TLDs (e.g. 'local')
-                        if (listTab.value !== 'private_tlds' && !d.includes('.')) {
-                            skipped++;
-                            continue;
-                        }
-                        
-                        entries.push(d);
-                    }
-                    
-                    if (!entries.length) {
-                        showToast(skipped > 0 ? 'All entered domains were invalid (missing dots?)' : 'No valid domains found', 'error');
-                        return;
-                    }
-
+                const saveListText = async () => {
+                    if (saving.value) return;
+                    saving.value = true;
                     try {
-                        const res = await apiFetch('/api/lists/add', { method: 'POST', body: JSON.stringify({ type: listTab.value, entries }) });
+                        const res = await apiFetch('/api/lists/save', { 
+                            method: 'POST', 
+                            body: JSON.stringify({ type: listTab.value, text: currentRawText.value }) 
+                        });
                         if (res.ok) {
                             const data = await res.json();
                             lists.value = data.lists;
-                            newDomain.value = '';
-                            showToast(`Added ${entries.length} domain${entries.length > 1 ? 's' : ''}` + (skipped > 0 ? ` (${skipped} skipped)` : ''));
+                            showToast('List saved and applied successfully');
                             refreshStats();
-                        } else showToast('Failed to add domains', 'error');
+                        } else showToast('Failed to save list', 'error');
                     } catch (e) { showToast('Network error', 'error'); }
-                };
-
-                const addRedirect = async () => {
-                    if (!newRedirSource.value.trim()) return;
-                    
-                    const rawLines = newRedirSource.value.split('\n');
-                    const entries = [];
-                    let skipped = 0;
-                    
-                    for (let line of rawLines) {
-                        line = line.trim().toLowerCase();
-                        if (!line) continue;
-                        
-                        // Parse format: source target (separated by continuous spaces)
-                        const parts = line.split(/\s+/);
-                        if (parts.length >= 2) {
-                            const s = parts[0];
-                            const t = parts[1];
-                            entries.push({ source: s, target: t });
-                        } else {
-                            skipped++;
-                        }
-                    }
-                    
-                    if (!entries.length) {
-                        showToast(skipped > 0 ? 'All entered rules were invalid (Format: source target)' : 'No valid rules found', 'error');
-                        return;
-                    }
-
-                    try {
-                        const res = await apiFetch('/api/lists/add', { method: 'POST', body: JSON.stringify({ type: 'redirect_rules', entries }) });
-                        if (res.ok) {
-                            const data = await res.json();
-                            lists.value = data.lists;
-                            newRedirSource.value = '';
-                            newRedirTarget.value = '';
-                            showToast(`Added ${entries.length} rule${entries.length > 1 ? 's' : ''}` + (skipped > 0 ? ` (${skipped} skipped)` : ''));
-                            refreshStats();
-                        } else showToast('Failed to add rules', 'error');
-                    } catch (e) { showToast('Network error', 'error'); }
-                };
-
-                const removeEntry = async (type, entry) => {
-                    try {
-                        const res = await apiFetch('/api/lists/remove', { method: 'POST', body: JSON.stringify({ type, entries: [entry] }) });
-                        if (res.ok) {
-                            const data = await res.json();
-                            lists.value = data.lists;
-                            showToast('Entry removed');
-                            refreshStats();
-                        } else showToast('Failed to remove', 'error');
-                    } catch (e) { showToast('Network error', 'error'); }
+                    finally { saving.value = false; }
                 };
 
                 const forceSync = async () => {
@@ -2075,7 +1974,7 @@
                     features, filters, allFeatures,
                     activeFeatureCount, activeFilterCount, activeCount, totalCount, totalCustomEntries,
                     register, login, logout, toggleFeature, saveUpstreams,
-                    switchToLists, loadLists, addDomain, addRedirect, removeEntry, addUrl, removeUrl, forceSync,
+                    switchToLists, loadLists, saveListText, addUrl, removeUrl, forceSync,
                     fmt, timeAgo, showToast, theme, toggleTheme
                 };
             }
