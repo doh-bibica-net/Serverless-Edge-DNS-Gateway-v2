@@ -190,8 +190,6 @@ async function hashPassword(password, salt) {
   return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Domain validation regex — matches extract_domains() in update_lists.sh
-const DOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;
 
 // Extract and clean domains from raw list text (AdBlock, hosts, plain domain formats)
 // Mirrors the awk extract_domains() logic in update_lists.sh
