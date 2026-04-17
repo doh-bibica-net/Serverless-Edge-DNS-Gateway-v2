@@ -37,7 +37,6 @@ let MULLVAD_UPSTREAM_URL = '/rules/mullvad_upstream.txt';
 let DEBUG_ENABLED = false;
 
 // Pre-compiled regex patterns for performance
-const DOMAIN_REGEX = /^[a-zA-Z0-9_.-]+$/;
 const IPV4_MAPPED_REGEX = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i;
 const IPV6_VALID_REGEX = /^[0-9a-f:]+$/i;
 const IPV6_GROUP_REGEX = /^[0-9a-f]+$/i;
@@ -191,7 +190,7 @@ async function hashPassword(password, salt) {
 }
 
 // Domain validation regex — matches extract_domains() in update_lists.sh
-const DOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+const DOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;
 
 // Extract and clean domains from raw list text (AdBlock, hosts, plain domain formats)
 // Mirrors the awk extract_domains() logic in update_lists.sh
