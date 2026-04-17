@@ -155,6 +155,7 @@ function getCurrentStats(env, adminUser) {
     lastFetch: blocklistLastFetch ? new Date(blocklistLastFetch).toISOString() : 'never',
     hasKV: !!env?.DNS_GATEWAY_KV,
     hasAuth: !!adminUser,
+    adminUsername: adminUser ? adminUser.username : '',
     needsSetup: !!env?.DNS_GATEWAY_KV && !adminUser
   };
 }

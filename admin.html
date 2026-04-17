@@ -1873,7 +1873,11 @@
                             stats.value = d.stats;
                             appState.value = 'admin';
                             // Also try to get the username from auth header if noAuth mode
-                            if (d.stats && d.stats.hasAuth === false) adminUsername.value = '';
+                            if (d.stats && d.stats.hasAuth === false) {
+                                adminUsername.value = '';
+                            } else if (d.stats && d.stats.adminUsername) {
+                                adminUsername.value = d.stats.adminUsername;
+                            }
                         }
                     } catch (e) { showToast('Failed to load config', 'error'); }
                 };
@@ -1975,6 +1979,7 @@
                         if (res.ok) {
                             const data = await res.json();
                             customUrls.value = data.urls;
+                            reloadCurrentRawText();
                             showToast(data.message || 'Subscription URLs saved');
                             refreshStats();
                         } else showToast('Failed to save URLs', 'error');
@@ -1990,6 +1995,7 @@
                         if (res.ok) {
                             const data = await res.json();
                             customUrls.value = data.urls;
+                            reloadCurrentRawText();
                             newUrl.value = '';
                             showToast('URL added — domains fetched on next refresh');
                         } else showToast('Failed to add URL', 'error');
@@ -2002,14 +2008,15 @@
                         if (res.ok) {
                             const data = await res.json();
                             customUrls.value = data.urls;
+                            reloadCurrentRawText();
                             showToast('URL removed');
                         } else showToast('Failed to remove URL', 'error');
                     } catch (e) { showToast('Network error', 'error'); }
                 };
 
                 const saveListText = async () => {
-                    if (saving.value) return;
-                    saving.value = true;
+                    if (savingList.value) return;
+                    savingList.value = true;
                     try {
                         const res = await apiFetch('/api/lists/save', {
                             method: 'POST',
@@ -2018,11 +2025,12 @@
                         if (res.ok) {
                             const data = await res.json();
                             lists.value = data.lists;
+                            reloadCurrentRawText();
                             showToast(data.message || 'List saved and applied successfully');
                             refreshStats();
                         } else showToast('Failed to save list', 'error');
                     } catch (e) { showToast('Network error', 'error'); }
-                    finally { saving.value = false; }
+                    finally { savingList.value = false; }
                 };
 
                 const forceSync = async () => {
