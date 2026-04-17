@@ -40,6 +40,7 @@ let DEBUG_ENABLED = false;
 const IPV4_MAPPED_REGEX = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i;
 const IPV6_VALID_REGEX = /^[0-9a-f:]+$/i;
 const IPV6_GROUP_REGEX = /^[0-9a-f]+$/i;
+const DOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;
 
 // ==================== STATE ====================
 let adBlocklist = new Set();
@@ -1171,6 +1172,7 @@ async function handleRequest(request, context) {
         const parsedArray = [];
         const parsedSet = new Set();
         const lines = text.split('\n');
+        let skipped = 0;
 
         if (type === 'redirect_rules') {
           for (const rawLine of lines) {
@@ -1183,6 +1185,8 @@ async function handleRequest(request, context) {
                     parsedSet.add(parts[0]);
                     parsedArray.push({ source: parts[0], target: parts[1] });
                 }
+            } else {
+                skipped++;
             }
           }
         } else {
@@ -1191,8 +1195,13 @@ async function handleRequest(request, context) {
             if (!line || /^[!#]/.test(line)) continue;
             if (DOMAIN_REGEX.test(line)) {
                // Strict dot requirement except for private_tlds
-               if (type !== 'private_tlds' && !line.includes('.')) continue;
+               if (type !== 'private_tlds' && !line.includes('.')) {
+                   skipped++;
+                   continue;
+               }
                parsedSet.add(line);
+            } else {
+               skipped++;
             }
           }
           parsedArray.push(...parsedSet);
@@ -1201,7 +1210,8 @@ async function handleRequest(request, context) {
         custom[type] = parsedArray;
         await context.env.DNS_GATEWAY_KV.put('custom_domains', JSON.stringify(custom));
         await triggerListSync(context.env);
-        return new Response(JSON.stringify({ ok: true, lists: custom }), { headers: apiHeaders });
+        const msg = skipped > 0 ? `Saved! (${skipped} invalid line${skipped > 1 ? 's' : ''} ignored)` : 'List saved and applied successfully';
+        return new Response(JSON.stringify({ ok: true, lists: custom, message: msg }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
     }
 
@@ -1225,18 +1235,22 @@ async function handleRequest(request, context) {
         
         const parsedSet = new Set();
         const lines = text.split('\n');
+        let skippedUrls = 0;
         for (const rawLine of lines) {
           const line = rawLine.trim();
           if (!line || /^[!#]/.test(line)) continue;
           if (line.startsWith('http://') || line.startsWith('https://')) {
             parsedSet.add(line);
+          } else {
+            skippedUrls++;
           }
         }
         
         urls[type] = Array.from(parsedSet);
         await context.env.DNS_GATEWAY_KV.put('custom_urls', JSON.stringify(urls));
         await triggerListSync(context.env);
-        return new Response(JSON.stringify({ ok: true, urls }), { headers: apiHeaders });
+        const urlMsg = skippedUrls > 0 ? `Saved! (${skippedUrls} invalid line${skippedUrls > 1 ? 's' : ''} ignored)` : 'Subscription URLs saved';
+        return new Response(JSON.stringify({ ok: true, urls, message: urlMsg }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
     }
 
