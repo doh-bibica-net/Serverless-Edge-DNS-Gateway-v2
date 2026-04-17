@@ -159,10 +159,10 @@
     <div v-if="appState==='no-kv'" class="login-overlay">
         <div class="login-card">
             <h2 style="margin-bottom:16px">⚠️ Setup Required</h2>
-            <p style="margin-bottom:24px">Bind a KV namespace as <code>CONFIG_KV</code> in your <code>wrangler.toml</code> or Cloudflare Dashboard to enable the admin panel.</p>
+            <p style="margin-bottom:24px">Bind a KV namespace as <code>DNS_GATEWAY_KV</code> in your <code>wrangler.toml</code> or Cloudflare Dashboard to enable the admin panel.</p>
             <div style="background:var(--bg-2);border-radius:8px;padding:16px;font-family:monospace;font-size:13px;color:var(--text-2)">
                 [[kv_namespaces]]<br>
-                binding = "CONFIG_KV"<br>
+                binding = "DNS_GATEWAY_KV"<br>
                 id = "your-namespace-id"
             </div>
         </div>
@@ -209,7 +209,7 @@
             <div class="content">
                 <!-- DASHBOARD -->
                 <div v-if="tab==='dashboard'">
-                    <div v-if="!stats.hasKV" class="alert alert-i">ℹ️ No KV binding. Bind <code>CONFIG_KV</code> for persistent config and custom domain lists.</div>
+                    <div v-if="!stats.hasKV" class="alert alert-i">ℹ️ No KV binding. Bind <code>DNS_GATEWAY_KV</code> for persistent config and custom domain lists.</div>
                     <div class="stats">
                         <div class="stat"><div class="stat-label">Active Features</div><div class="stat-value">{{activeCount}}<span style="font-size:16px;color:var(--text-2)">/{{totalCount}}</span></div></div>
                         <div class="stat s"><div class="stat-label">Blocklist</div><div class="stat-value">{{fmt(stats.blocklistSize)}}</div></div>
@@ -260,7 +260,7 @@
                 </div>
                 <!-- LISTS -->
                 <div v-if="tab==='lists'">
-                    <div v-if="!stats.hasKV" class="alert alert-w">⚠️ KV not configured — custom domain lists require <code>CONFIG_KV</code> binding.</div>
+                    <div v-if="!stats.hasKV" class="alert alert-w">⚠️ KV not configured — custom domain lists require <code>DNS_GATEWAY_KV</code> binding.</div>
                     <div class="sub-tabs">
                         <div class="sub-tab" :class="{active:listTab==='blocklist'}" @click="listTab='blocklist'">Blocklist <span class="badge badge-d" style="margin-left:4px">{{(lists.blocklist||[]).length}}</span></div>
                         <div class="sub-tab" :class="{active:listTab==='allowlist'}" @click="listTab='allowlist'">Allowlist <span class="badge badge-s" style="margin-left:4px">{{(lists.allowlist||[]).length}}</span></div>

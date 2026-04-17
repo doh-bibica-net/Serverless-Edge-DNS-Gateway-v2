@@ -102,18 +102,18 @@ let configLoaded = false;
 async function loadConfig(env) {
   if (configLoaded) return;
   configLoaded = true;
-  if (!env?.CONFIG_KV) return;
+  if (!env?.DNS_GATEWAY_KV) return;
   try {
-    const saved = await env.CONFIG_KV.get('dns_gateway_config', 'json');
+    const saved = await env.DNS_GATEWAY_KV.get('dns_gateway_config', 'json');
     if (saved) applyConfig(saved);
   } catch {}
 }
 
 async function saveConfigToKV(env, updates) {
   applyConfig(updates);
-  if (!env?.CONFIG_KV) return;
+  if (!env?.DNS_GATEWAY_KV) return;
   try {
-    await env.CONFIG_KV.put('dns_gateway_config', JSON.stringify(getCurrentConfig()));
+    await env.DNS_GATEWAY_KV.put('dns_gateway_config', JSON.stringify(getCurrentConfig()));
   } catch {}
 }
 
@@ -125,9 +125,9 @@ function getCurrentStats(env, adminUser) {
     redirectRulesSize: redirectRules.size,
     mullvadDomainsSize: mullvadUpstreamDomains.size,
     lastFetch: blocklistLastFetch ? new Date(blocklistLastFetch).toISOString() : 'never',
-    hasKV: !!env?.CONFIG_KV,
+    hasKV: !!env?.DNS_GATEWAY_KV,
     hasAuth: !!adminUser,
-    needsSetup: !!env?.CONFIG_KV && !adminUser
+    needsSetup: !!env?.DNS_GATEWAY_KV && !adminUser
   };
 }
 
@@ -250,9 +250,9 @@ async function refreshBlocklists(baseUrl, env) {
       if (MULLVAD_UPSTREAM_ENABLED) { mullvadUpstreamDomains = mullvadList; }
 
       // Merge custom domains from KV
-      if (env?.CONFIG_KV) {
+      if (env?.DNS_GATEWAY_KV) {
         try {
-          const custom = await env.CONFIG_KV.get('custom_domains', 'json');
+          const custom = await env.DNS_GATEWAY_KV.get('custom_domains', 'json');
           if (custom) {
             if (custom.blocklist) custom.blocklist.forEach(d => adBlocklist.add(d));
             if (custom.allowlist) custom.allowlist.forEach(d => adAllowlist.add(d));
@@ -263,7 +263,7 @@ async function refreshBlocklists(baseUrl, env) {
         } catch {}
         // Fetch custom external URLs (user-added list subscriptions)
         try {
-          const customUrls = await env.CONFIG_KV.get('custom_urls', 'json');
+          const customUrls = await env.DNS_GATEWAY_KV.get('custom_urls', 'json');
           if (customUrls) {
             const fetches = [];
             if (customUrls.blocklist) customUrls.blocklist.forEach(u => fetches.push(fetchList(u).then(s => s.forEach(d => adBlocklist.add(d)))));
@@ -1044,11 +1044,11 @@ async function handleRequest(request, context) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: apiHeaders });
 
     // Load admin user from KV
-    const adminUser = context.env?.CONFIG_KV ? await context.env.CONFIG_KV.get('admin_user', 'json').catch(() => null) : null;
+    const adminUser = context.env?.DNS_GATEWAY_KV ? await context.env.DNS_GATEWAY_KV.get('admin_user', 'json').catch(() => null) : null;
 
     // POST /api/register — First-user-is-admin
     if (path === '/api/register' && request.method === 'POST') {
-      if (!context.env?.CONFIG_KV) return new Response(JSON.stringify({ error: 'KV not configured. Bind CONFIG_KV namespace.' }), { status: 503, headers: apiHeaders });
+      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured. Bind DNS_GATEWAY_KV namespace.' }), { status: 503, headers: apiHeaders });
       if (adminUser) return new Response(JSON.stringify({ error: 'Admin account already exists' }), { status: 403, headers: apiHeaders });
       try {
         const body = await request.json();
@@ -1058,7 +1058,7 @@ async function handleRequest(request, context) {
         const salt = crypto.randomUUID();
         const passwordHash = await hashPassword(body.password, salt);
         const user = { username: body.username, passwordHash, salt, createdAt: new Date().toISOString() };
-        await context.env.CONFIG_KV.put('admin_user', JSON.stringify(user));
+        await context.env.DNS_GATEWAY_KV.put('admin_user', JSON.stringify(user));
         const authToken = await createAuthToken(passwordHash);
         return new Response(JSON.stringify({ token: authToken, username: user.username }), { headers: apiHeaders });
       } catch (e) {
@@ -1068,7 +1068,7 @@ async function handleRequest(request, context) {
 
     // POST /api/auth — Login
     if (path === '/api/auth' && request.method === 'POST') {
-      if (!context.env?.CONFIG_KV) return new Response(JSON.stringify({ token: 'open', noAuth: true }), { headers: apiHeaders });
+      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ token: 'open', noAuth: true }), { headers: apiHeaders });
       if (!adminUser) return new Response(JSON.stringify({ needsSetup: true }), { headers: apiHeaders });
       try {
         const body = await request.json();
@@ -1108,20 +1108,20 @@ async function handleRequest(request, context) {
 
     // GET /api/lists — Read custom domain lists
     if (path === '/api/lists' && request.method === 'GET') {
-      if (!context.env?.CONFIG_KV) return new Response(JSON.stringify({}), { headers: apiHeaders });
-      const custom = await context.env.CONFIG_KV.get('custom_domains', 'json').catch(() => null) || {};
+      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({}), { headers: apiHeaders });
+      const custom = await context.env.DNS_GATEWAY_KV.get('custom_domains', 'json').catch(() => null) || {};
       return new Response(JSON.stringify(custom), { headers: apiHeaders });
     }
 
     // POST /api/lists/add — Add entries to a list
     if (path === '/api/lists/add' && request.method === 'POST') {
-      if (!context.env?.CONFIG_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
+      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
       try {
         const body = await request.json();
         const { type, entries } = body;
         const validTypes = ['blocklist', 'allowlist', 'private_tlds', 'mullvad_upstream', 'redirect_rules'];
         if (!validTypes.includes(type) || !Array.isArray(entries)) return new Response(JSON.stringify({ error: 'Invalid type or entries' }), { status: 400, headers: apiHeaders });
-        const custom = await context.env.CONFIG_KV.get('custom_domains', 'json').catch(() => null) || {};
+        const custom = await context.env.DNS_GATEWAY_KV.get('custom_domains', 'json').catch(() => null) || {};
         if (!custom[type]) custom[type] = [];
         if (type === 'redirect_rules') {
           for (const e of entries) {
@@ -1135,7 +1135,7 @@ async function handleRequest(request, context) {
             if (d && DOMAIN_REGEX.test(d) && !custom[type].includes(d)) custom[type].push(d);
           }
         }
-        await context.env.CONFIG_KV.put('custom_domains', JSON.stringify(custom));
+        await context.env.DNS_GATEWAY_KV.put('custom_domains', JSON.stringify(custom));
         blocklistLastFetch = 0; blocklistsFetched = false;
         return new Response(JSON.stringify({ ok: true, lists: custom }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
@@ -1143,13 +1143,13 @@ async function handleRequest(request, context) {
 
     // POST /api/lists/remove — Remove entries from a list
     if (path === '/api/lists/remove' && request.method === 'POST') {
-      if (!context.env?.CONFIG_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
+      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
       try {
         const body = await request.json();
         const { type, entries } = body;
         const validTypes = ['blocklist', 'allowlist', 'private_tlds', 'mullvad_upstream', 'redirect_rules'];
         if (!validTypes.includes(type) || !Array.isArray(entries)) return new Response(JSON.stringify({ error: 'Invalid type or entries' }), { status: 400, headers: apiHeaders });
-        const custom = await context.env.CONFIG_KV.get('custom_domains', 'json').catch(() => null) || {};
+        const custom = await context.env.DNS_GATEWAY_KV.get('custom_domains', 'json').catch(() => null) || {};
         if (!custom[type]) return new Response(JSON.stringify({ ok: true, lists: custom }), { headers: apiHeaders });
         if (type === 'redirect_rules') {
           const removeSet = new Set(entries.map(e => String(e).toLowerCase()));
@@ -1158,7 +1158,7 @@ async function handleRequest(request, context) {
           const removeSet = new Set(entries.map(e => String(e).trim().toLowerCase()));
           custom[type] = custom[type].filter(d => !removeSet.has(d));
         }
-        await context.env.CONFIG_KV.put('custom_domains', JSON.stringify(custom));
+        await context.env.DNS_GATEWAY_KV.put('custom_domains', JSON.stringify(custom));
         blocklistLastFetch = 0; blocklistsFetched = false;
         return new Response(JSON.stringify({ ok: true, lists: custom }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
@@ -1166,23 +1166,23 @@ async function handleRequest(request, context) {
 
     // GET /api/urls — Read custom external list URLs
     if (path === '/api/urls' && request.method === 'GET') {
-      if (!context.env?.CONFIG_KV) return new Response(JSON.stringify({}), { headers: apiHeaders });
-      const urls = await context.env.CONFIG_KV.get('custom_urls', 'json').catch(() => null) || {};
+      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({}), { headers: apiHeaders });
+      const urls = await context.env.DNS_GATEWAY_KV.get('custom_urls', 'json').catch(() => null) || {};
       return new Response(JSON.stringify(urls), { headers: apiHeaders });
     }
 
     // POST /api/urls/add — Add external list URL
     if (path === '/api/urls/add' && request.method === 'POST') {
-      if (!context.env?.CONFIG_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
+      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
       try {
         const body = await request.json();
         const { type, url } = body;
         if (!['blocklist', 'allowlist'].includes(type) || !url) return new Response(JSON.stringify({ error: 'Invalid type or url' }), { status: 400, headers: apiHeaders });
-        const urls = await context.env.CONFIG_KV.get('custom_urls', 'json').catch(() => null) || {};
+        const urls = await context.env.DNS_GATEWAY_KV.get('custom_urls', 'json').catch(() => null) || {};
         if (!urls[type]) urls[type] = [];
         const u = url.trim();
         if (u && !urls[type].includes(u)) urls[type].push(u);
-        await context.env.CONFIG_KV.put('custom_urls', JSON.stringify(urls));
+        await context.env.DNS_GATEWAY_KV.put('custom_urls', JSON.stringify(urls));
         blocklistLastFetch = 0; blocklistsFetched = false;
         return new Response(JSON.stringify({ ok: true, urls }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
@@ -1190,14 +1190,14 @@ async function handleRequest(request, context) {
 
     // POST /api/urls/remove — Remove external list URL
     if (path === '/api/urls/remove' && request.method === 'POST') {
-      if (!context.env?.CONFIG_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
+      if (!context.env?.DNS_GATEWAY_KV) return new Response(JSON.stringify({ error: 'KV not configured' }), { status: 503, headers: apiHeaders });
       try {
         const body = await request.json();
         const { type, url } = body;
         if (!['blocklist', 'allowlist'].includes(type) || !url) return new Response(JSON.stringify({ error: 'Invalid type or url' }), { status: 400, headers: apiHeaders });
-        const urls = await context.env.CONFIG_KV.get('custom_urls', 'json').catch(() => null) || {};
+        const urls = await context.env.DNS_GATEWAY_KV.get('custom_urls', 'json').catch(() => null) || {};
         if (urls[type]) urls[type] = urls[type].filter(u => u !== url);
-        await context.env.CONFIG_KV.put('custom_urls', JSON.stringify(urls));
+        await context.env.DNS_GATEWAY_KV.put('custom_urls', JSON.stringify(urls));
         blocklistLastFetch = 0; blocklistsFetched = false;
         return new Response(JSON.stringify({ ok: true, urls }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
