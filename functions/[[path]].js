@@ -91,8 +91,8 @@ function applyConfig(cfg) {
   if (cfg.DEBUG_ENABLED !== undefined) DEBUG_ENABLED = Boolean(cfg.DEBUG_ENABLED);
   BLOCKED_QTYPES = getBlockedQtypes();
   if (cfg.BLOCKLIST_URL !== undefined || cfg.ALLOWLIST_URL !== undefined ||
-      cfg.PRIVATE_TLD_URL !== undefined || cfg.REDIRECT_RULES_URL !== undefined ||
-      cfg.MULLVAD_UPSTREAM_URL !== undefined) {
+    cfg.PRIVATE_TLD_URL !== undefined || cfg.REDIRECT_RULES_URL !== undefined ||
+    cfg.MULLVAD_UPSTREAM_URL !== undefined) {
     blocklistLastFetch = 0;
     blocklistsFetched = false;
   }
@@ -106,7 +106,7 @@ async function loadConfig(env) {
   try {
     const saved = await env.DNS_GATEWAY_KV.get('dns_gateway_config', 'json');
     if (saved) applyConfig(saved);
-  } catch {}
+  } catch { }
 }
 
 async function saveConfigToKV(env, updates) {
@@ -114,7 +114,7 @@ async function saveConfigToKV(env, updates) {
   if (!env?.DNS_GATEWAY_KV) return;
   try {
     await env.DNS_GATEWAY_KV.put('dns_gateway_config', JSON.stringify(getCurrentConfig()));
-  } catch {}
+  } catch { }
 }
 
 function getCurrentStats(env, adminUser) {
@@ -260,7 +260,7 @@ async function refreshBlocklists(baseUrl, env) {
             if (custom.redirect_rules) custom.redirect_rules.forEach(r => redirectRules.set(r.source.toLowerCase(), r.target.toLowerCase()));
             if (custom.mullvad_upstream) custom.mullvad_upstream.forEach(d => mullvadUpstreamDomains.add(d));
           }
-        } catch {}
+        } catch { }
         // Fetch custom external URLs (user-added list subscriptions)
         try {
           const customUrls = await env.DNS_GATEWAY_KV.get('custom_urls', 'json');
@@ -270,7 +270,7 @@ async function refreshBlocklists(baseUrl, env) {
             if (customUrls.allowlist) customUrls.allowlist.forEach(u => fetches.push(fetchList(u).then(s => s.forEach(d => adAllowlist.add(d)))));
             await Promise.allSettled(fetches);
           }
-        } catch {}
+        } catch { }
       }
 
       blocklistLastFetch = Date.now();
@@ -920,14 +920,7 @@ async function handleDNSQuery(request, context) {
         });
       }
 
-      // Ad block check (NXDOMAIN)
-      if (AD_BLOCK_ENABLED && isDomainBlocked(domain)) {
-        return new Response(buildNxdomain(query), {
-          headers: { ...cors, 'Content-Type': 'application/dns-message', 'X-Blocked': domain }
-        });
-      }
-
-      // DNS redirect: rewrite QNAME, forward to upstream, rebuild response with CNAME + answers
+      // DNS redirect: rewrite QNAME, forward to upstream, rebuild response with CNAME + answers (priority over blocklists)
       if (DNS_REDIRECT_ENABLED && redirectRules.has(domain)) {
         const targetDomain = redirectRules.get(domain);
         try {
@@ -940,6 +933,13 @@ async function handleDNSQuery(request, context) {
         } catch {
           // Redirect failed, fall through to normal resolution
         }
+      }
+
+      // Ad block check (NXDOMAIN)
+      if (AD_BLOCK_ENABLED && isDomainBlocked(domain)) {
+        return new Response(buildNxdomain(query), {
+          headers: { ...cors, 'Content-Type': 'application/dns-message', 'X-Blocked': domain }
+        });
       }
     }
   }
@@ -1077,7 +1077,7 @@ async function handleRequest(request, context) {
           const authToken = await createAuthToken(adminUser.passwordHash);
           return new Response(JSON.stringify({ token: authToken, username: adminUser.username }), { headers: apiHeaders });
         }
-      } catch {}
+      } catch { }
       return new Response(JSON.stringify({ error: 'Invalid credentials' }), { status: 401, headers: apiHeaders });
     }
 
@@ -1092,6 +1092,9 @@ async function handleRequest(request, context) {
 
     // GET /api/config — Read current config + stats
     if (path === '/api/config' && request.method === 'GET') {
+      if (AD_BLOCK_ENABLED || BLOCK_PRIVATE_TLD || DNS_REDIRECT_ENABLED || MULLVAD_UPSTREAM_ENABLED) {
+        await ensureBlocklistsLoaded(request.url, context);
+      }
       return new Response(JSON.stringify({ config: getCurrentConfig(), stats: getCurrentStats(context.env, adminUser) }), { headers: apiHeaders });
     }
 
@@ -1100,6 +1103,9 @@ async function handleRequest(request, context) {
       try {
         const updates = await request.json();
         await saveConfigToKV(context.env, updates);
+        if (AD_BLOCK_ENABLED || BLOCK_PRIVATE_TLD || DNS_REDIRECT_ENABLED || MULLVAD_UPSTREAM_ENABLED) {
+          await ensureBlocklistsLoaded(request.url, context);
+        }
         return new Response(JSON.stringify({ ok: true, config: getCurrentConfig(), stats: getCurrentStats(context.env, adminUser) }), { headers: apiHeaders });
       } catch (e) {
         return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders });
