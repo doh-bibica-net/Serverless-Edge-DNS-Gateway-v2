@@ -50,6 +50,8 @@ let mullvadUpstreamDomains = new Set();
 let blocklistLastFetch = 0;
 let blocklistPromise = null;
 let blocklistsFetched = false; // Track if lists have been fetched at least once
+let listsUpdatedAt = 0;
+let configLastFetch = 0;
 
 // ==================== CONFIG MANAGEMENT ====================
 function getCurrentConfig() {
@@ -62,19 +64,23 @@ function getCurrentConfig() {
     BLOCK_PRIVATE_TLD, PRIVATE_TLD_URL,
     DNS_REDIRECT_ENABLED, REDIRECT_RULES_URL,
     MULLVAD_UPSTREAM_ENABLED, MULLVAD_UPSTREAM_URL,
-    DEBUG_ENABLED
+    DEBUG_ENABLED, listsUpdatedAt
   };
 }
 
 function applyConfig(cfg) {
+  let listConfigChanged = false;
+
   if (cfg.UPSTREAM_PRIMARY !== undefined) UPSTREAM_PRIMARY = String(cfg.UPSTREAM_PRIMARY);
   if (cfg.UPSTREAM_FALLBACK !== undefined) UPSTREAM_FALLBACK = String(cfg.UPSTREAM_FALLBACK);
   if (cfg.UPSTREAM_GEO_BYPASS !== undefined) UPSTREAM_GEO_BYPASS = String(cfg.UPSTREAM_GEO_BYPASS);
   if (cfg.UPSTREAM_TIMEOUT !== undefined) UPSTREAM_TIMEOUT = Number(cfg.UPSTREAM_TIMEOUT) || 5000;
   if (cfg.ALL_LISTS_REFRESH_INTERVAL !== undefined) ALL_LISTS_REFRESH_INTERVAL = Number(cfg.ALL_LISTS_REFRESH_INTERVAL) || 3600000;
   if (cfg.AD_BLOCK_ENABLED !== undefined) AD_BLOCK_ENABLED = Boolean(cfg.AD_BLOCK_ENABLED);
-  if (cfg.BLOCKLIST_URL !== undefined) BLOCKLIST_URL = String(cfg.BLOCKLIST_URL);
-  if (cfg.ALLOWLIST_URL !== undefined) ALLOWLIST_URL = String(cfg.ALLOWLIST_URL);
+  
+  if (cfg.BLOCKLIST_URL !== undefined && cfg.BLOCKLIST_URL !== BLOCKLIST_URL) { BLOCKLIST_URL = String(cfg.BLOCKLIST_URL); listConfigChanged = true; }
+  if (cfg.ALLOWLIST_URL !== undefined && cfg.ALLOWLIST_URL !== ALLOWLIST_URL) { ALLOWLIST_URL = String(cfg.ALLOWLIST_URL); listConfigChanged = true; }
+  
   if (cfg.ECS_INJECTION_ENABLED !== undefined) ECS_INJECTION_ENABLED = Boolean(cfg.ECS_INJECTION_ENABLED);
   if (cfg.ECS_PREFIX_V4 !== undefined) ECS_PREFIX_V4 = Number(cfg.ECS_PREFIX_V4) || 24;
   if (cfg.ECS_PREFIX_V6 !== undefined) ECS_PREFIX_V6 = Number(cfg.ECS_PREFIX_V6) || 48;
@@ -83,16 +89,25 @@ function applyConfig(cfg) {
   if (cfg.BLOCK_PTR !== undefined) BLOCK_PTR = Boolean(cfg.BLOCK_PTR);
   if (cfg.BLOCK_HTTPS !== undefined) BLOCK_HTTPS = Boolean(cfg.BLOCK_HTTPS);
   if (cfg.BLOCK_PRIVATE_TLD !== undefined) BLOCK_PRIVATE_TLD = Boolean(cfg.BLOCK_PRIVATE_TLD);
-  if (cfg.PRIVATE_TLD_URL !== undefined) PRIVATE_TLD_URL = String(cfg.PRIVATE_TLD_URL);
+  
+  if (cfg.PRIVATE_TLD_URL !== undefined && cfg.PRIVATE_TLD_URL !== PRIVATE_TLD_URL) { PRIVATE_TLD_URL = String(cfg.PRIVATE_TLD_URL); listConfigChanged = true; }
+  
   if (cfg.DNS_REDIRECT_ENABLED !== undefined) DNS_REDIRECT_ENABLED = Boolean(cfg.DNS_REDIRECT_ENABLED);
-  if (cfg.REDIRECT_RULES_URL !== undefined) REDIRECT_RULES_URL = String(cfg.REDIRECT_RULES_URL);
+  if (cfg.REDIRECT_RULES_URL !== undefined && cfg.REDIRECT_RULES_URL !== REDIRECT_RULES_URL) { REDIRECT_RULES_URL = String(cfg.REDIRECT_RULES_URL); listConfigChanged = true; }
+  
   if (cfg.MULLVAD_UPSTREAM_ENABLED !== undefined) MULLVAD_UPSTREAM_ENABLED = Boolean(cfg.MULLVAD_UPSTREAM_ENABLED);
-  if (cfg.MULLVAD_UPSTREAM_URL !== undefined) MULLVAD_UPSTREAM_URL = String(cfg.MULLVAD_UPSTREAM_URL);
+  if (cfg.MULLVAD_UPSTREAM_URL !== undefined && cfg.MULLVAD_UPSTREAM_URL !== MULLVAD_UPSTREAM_URL) { MULLVAD_UPSTREAM_URL = String(cfg.MULLVAD_UPSTREAM_URL); listConfigChanged = true; }
+  
   if (cfg.DEBUG_ENABLED !== undefined) DEBUG_ENABLED = Boolean(cfg.DEBUG_ENABLED);
+  if (cfg.listsUpdatedAt !== undefined) listsUpdatedAt = Number(cfg.listsUpdatedAt);
+
   BLOCKED_QTYPES = getBlockedQtypes();
-  if (cfg.BLOCKLIST_URL !== undefined || cfg.ALLOWLIST_URL !== undefined ||
-    cfg.PRIVATE_TLD_URL !== undefined || cfg.REDIRECT_RULES_URL !== undefined ||
-    cfg.MULLVAD_UPSTREAM_URL !== undefined) {
+
+  if (listsUpdatedAt > blocklistLastFetch) {
+    listConfigChanged = true;
+  }
+
+  if (listConfigChanged) {
     blocklistLastFetch = 0;
     blocklistsFetched = false;
   }
@@ -100,8 +115,9 @@ function applyConfig(cfg) {
 
 let configLoaded = false;
 async function loadConfig(env) {
-  if (configLoaded) return;
+  if (configLoaded && Date.now() - configLastFetch < 60000) return;
   configLoaded = true;
+  configLastFetch = Date.now();
   if (!env?.DNS_GATEWAY_KV) return;
   try {
     const saved = await env.DNS_GATEWAY_KV.get('dns_gateway_config', 'json');
@@ -115,6 +131,17 @@ async function saveConfigToKV(env, updates) {
   try {
     await env.DNS_GATEWAY_KV.put('dns_gateway_config', JSON.stringify(getCurrentConfig()));
   } catch { }
+}
+
+async function triggerListSync(env) {
+  blocklistLastFetch = 0;
+  blocklistsFetched = false;
+  listsUpdatedAt = Date.now();
+  if (env?.DNS_GATEWAY_KV) {
+    try {
+      await env.DNS_GATEWAY_KV.put('dns_gateway_config', JSON.stringify(getCurrentConfig()));
+    } catch { }
+  }
 }
 
 function getCurrentStats(env, adminUser) {
@@ -1142,7 +1169,7 @@ async function handleRequest(request, context) {
           }
         }
         await context.env.DNS_GATEWAY_KV.put('custom_domains', JSON.stringify(custom));
-        blocklistLastFetch = 0; blocklistsFetched = false;
+        await triggerListSync(context.env);
         return new Response(JSON.stringify({ ok: true, lists: custom }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
     }
@@ -1165,7 +1192,7 @@ async function handleRequest(request, context) {
           custom[type] = custom[type].filter(d => !removeSet.has(d));
         }
         await context.env.DNS_GATEWAY_KV.put('custom_domains', JSON.stringify(custom));
-        blocklistLastFetch = 0; blocklistsFetched = false;
+        await triggerListSync(context.env);
         return new Response(JSON.stringify({ ok: true, lists: custom }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
     }
@@ -1189,7 +1216,7 @@ async function handleRequest(request, context) {
         const u = url.trim();
         if (u && !urls[type].includes(u)) urls[type].push(u);
         await context.env.DNS_GATEWAY_KV.put('custom_urls', JSON.stringify(urls));
-        blocklistLastFetch = 0; blocklistsFetched = false;
+        await triggerListSync(context.env);
         return new Response(JSON.stringify({ ok: true, urls }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
     }
@@ -1204,7 +1231,7 @@ async function handleRequest(request, context) {
         const urls = await context.env.DNS_GATEWAY_KV.get('custom_urls', 'json').catch(() => null) || {};
         if (urls[type]) urls[type] = urls[type].filter(u => u !== url);
         await context.env.DNS_GATEWAY_KV.put('custom_urls', JSON.stringify(urls));
-        blocklistLastFetch = 0; blocklistsFetched = false;
+        await triggerListSync(context.env);
         return new Response(JSON.stringify({ ok: true, urls }), { headers: apiHeaders });
       } catch { return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: apiHeaders }); }
     }
