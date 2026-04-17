@@ -37,6 +37,7 @@ let MULLVAD_UPSTREAM_URL = '/rules/mullvad_upstream.txt';
 let DEBUG_ENABLED = false;
 
 // Pre-compiled regex patterns for performance
+const DOMAIN_REGEX = /^[a-zA-Z0-9_.-]+$/;
 const IPV4_MAPPED_REGEX = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i;
 const IPV6_VALID_REGEX = /^[0-9a-f:]+$/i;
 const IPV6_GROUP_REGEX = /^[0-9a-f]+$/i;
@@ -77,10 +78,10 @@ function applyConfig(cfg) {
   if (cfg.UPSTREAM_TIMEOUT !== undefined) UPSTREAM_TIMEOUT = Number(cfg.UPSTREAM_TIMEOUT) || 5000;
   if (cfg.ALL_LISTS_REFRESH_INTERVAL !== undefined) ALL_LISTS_REFRESH_INTERVAL = Number(cfg.ALL_LISTS_REFRESH_INTERVAL) || 3600000;
   if (cfg.AD_BLOCK_ENABLED !== undefined) AD_BLOCK_ENABLED = Boolean(cfg.AD_BLOCK_ENABLED);
-  
+
   if (cfg.BLOCKLIST_URL !== undefined && cfg.BLOCKLIST_URL !== BLOCKLIST_URL) { BLOCKLIST_URL = String(cfg.BLOCKLIST_URL); listConfigChanged = true; }
   if (cfg.ALLOWLIST_URL !== undefined && cfg.ALLOWLIST_URL !== ALLOWLIST_URL) { ALLOWLIST_URL = String(cfg.ALLOWLIST_URL); listConfigChanged = true; }
-  
+
   if (cfg.ECS_INJECTION_ENABLED !== undefined) ECS_INJECTION_ENABLED = Boolean(cfg.ECS_INJECTION_ENABLED);
   if (cfg.ECS_PREFIX_V4 !== undefined) ECS_PREFIX_V4 = Number(cfg.ECS_PREFIX_V4) || 24;
   if (cfg.ECS_PREFIX_V6 !== undefined) ECS_PREFIX_V6 = Number(cfg.ECS_PREFIX_V6) || 48;
@@ -89,15 +90,15 @@ function applyConfig(cfg) {
   if (cfg.BLOCK_PTR !== undefined) BLOCK_PTR = Boolean(cfg.BLOCK_PTR);
   if (cfg.BLOCK_HTTPS !== undefined) BLOCK_HTTPS = Boolean(cfg.BLOCK_HTTPS);
   if (cfg.BLOCK_PRIVATE_TLD !== undefined) BLOCK_PRIVATE_TLD = Boolean(cfg.BLOCK_PRIVATE_TLD);
-  
+
   if (cfg.PRIVATE_TLD_URL !== undefined && cfg.PRIVATE_TLD_URL !== PRIVATE_TLD_URL) { PRIVATE_TLD_URL = String(cfg.PRIVATE_TLD_URL); listConfigChanged = true; }
-  
+
   if (cfg.DNS_REDIRECT_ENABLED !== undefined) DNS_REDIRECT_ENABLED = Boolean(cfg.DNS_REDIRECT_ENABLED);
   if (cfg.REDIRECT_RULES_URL !== undefined && cfg.REDIRECT_RULES_URL !== REDIRECT_RULES_URL) { REDIRECT_RULES_URL = String(cfg.REDIRECT_RULES_URL); listConfigChanged = true; }
-  
+
   if (cfg.MULLVAD_UPSTREAM_ENABLED !== undefined) MULLVAD_UPSTREAM_ENABLED = Boolean(cfg.MULLVAD_UPSTREAM_ENABLED);
   if (cfg.MULLVAD_UPSTREAM_URL !== undefined && cfg.MULLVAD_UPSTREAM_URL !== MULLVAD_UPSTREAM_URL) { MULLVAD_UPSTREAM_URL = String(cfg.MULLVAD_UPSTREAM_URL); listConfigChanged = true; }
-  
+
   if (cfg.DEBUG_ENABLED !== undefined) DEBUG_ENABLED = Boolean(cfg.DEBUG_ENABLED);
   if (cfg.listsUpdatedAt !== undefined) listsUpdatedAt = Number(cfg.listsUpdatedAt);
 
