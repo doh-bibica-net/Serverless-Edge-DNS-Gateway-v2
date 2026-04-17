@@ -1,3 +1,18 @@
 name = "serverless-edge-dns-gateway"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "./"
+
+# KV Namespace - Persistent Storage for Settings and Custom Domains
+# ----------------------------------------------------------------
+# Since you are using wrangler.toml, Cloudflare locks the binding UI.
+# You MUST provide the KV namespace ID below.
+# 
+# How to get the ID without using Command Line (CLI):
+# 1. Go to Cloudflare Dashboard -> Storage & Databases -> KV (or Workers & Pages -> KV)
+# 2. Click "Create namespace" and name it "DNS_GATEWAY_KV"
+# 3. Copy the "ID" of the newly created namespace.
+# 4. Paste that ID between the quotes below.
+# ----------------------------------------------------------------
+[[kv_namespaces]]
+binding = "DNS_GATEWAY_KV"
+id = "a7588619d349435cb607eb3638d0849a"
