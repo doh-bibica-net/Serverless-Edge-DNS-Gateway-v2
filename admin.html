@@ -1540,7 +1540,7 @@
                                     </div>
                                     <div class="input-row" style="margin-bottom:16px;">
                                         <textarea class="fi fi-mono" v-model="currentRawText"
-                                            :placeholder="listTab==='redirect_rules' ? '# Custom DNS redirect/rewrite\n# Format: source target\n\nwww.bilibili.tv www.bilibili.tv.w.cdngslb.com\nmedium.com rocket.net' : '# Example config with comments\n# Tracking servers\nads.example.com\napi.tracker.com'"
+                                            :placeholder="textPlaceholders[listTab]"
                                             :disabled="!stats.hasKV" rows="12" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
                                     </div>
                                 </div>
@@ -1587,9 +1587,7 @@
                                     </div>
                                     <div class="input-row" style="margin-bottom:16px;">
                                         <textarea class="fi fi-mono" v-model="currentRawUrlText"
-                                            placeholder="# Format: One subscription URL per line
-https://example.com/blocklist.txt
-https://example.com/hosts.txt"
+                                            :placeholder="urlPlaceholders[listTab]"
                                             :disabled="!stats.hasKV" rows="5" style="resize: vertical; white-space: pre; overflow-x: auto; box-sizing: border-box; width: 100%; font-size: 13px; line-height: 1.6; padding: 12px;"></textarea>
                                     </div>
                                     <div class="fh" style="margin-top:10px; text-align: center;">Domains are auto-cleaned
@@ -1696,8 +1694,22 @@ https://example.com/hosts.txt"
                 const listTabLabels = {
                     blocklist: 'Blocklist',
                     allowlist: 'Allowlist',
-                    private_tlds: 'Private TLD',
+                    redirect_rules: 'Redirect Rules',
+                    private_tlds: 'Private TLDs',
                     mullvad_upstream: 'Mullvad Upstream'
+                };
+                
+                const textPlaceholders = {
+                    blocklist: '# Example config with comments\n# Tracking servers\nads.example.com\napi.tracker.com',
+                    allowlist: '# Allowed domains (ignores blocklist)\nanalytics.mycompany.com\nsale.event.com',
+                    redirect_rules: '# Custom DNS redirect/rewrite (CNAME overrides)\n# Format: source target\n\nwww.bilibili.tv www.bilibili.tv.w.cdngslb.com\nmedium.com rocket.net',
+                    private_tlds: '# Block internal domains or routers (Suffix match)\nlocal\ninternal\n192.168.1.1',
+                    mullvad_upstream: '# Route specific domains via Mullvad (Anonymous routing)\ngithub.com\napi.github.com'
+                };
+
+                const urlPlaceholders = {
+                    blocklist: '# Subscribe to remote blocklists (Format: One URL per line)\nhttps://raw.githubusercontent.com/StevenBlack/hosts/master/hosts\nhttps://s3.amazonaws.com/lists/ads.txt',
+                    allowlist: '# Subscribe to remote allowlists (Format: One URL per line)\nhttps://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt'
                 };
 
                 const features = [
