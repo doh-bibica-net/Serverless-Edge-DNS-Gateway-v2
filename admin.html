@@ -1218,6 +1218,9 @@
                 <header class="topbar">
                     <h2>{{ tabLabels[tab] }}</h2>
                     <div class="topbar-right">
+                        <button v-if="appState === 'admin'" class="btn" @click="forceSync" :disabled="syncing" style="padding: 4px 10px; background: var(--accent-m); border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                            {{ syncing ? '⏳ Syncing...' : '🔄 Sync Now' }}
+                        </button>
                         <button class="btn" @click="toggleTheme" title="Toggle Light/Dark Theme" style="padding: 4px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; font-size: 14px; cursor: pointer;">
                             {{ theme === 'light' ? '🌙' : '☀️' }}
                         </button>
@@ -1726,6 +1729,7 @@
                 const customUrls = ref({});
                 const saving = ref(false);
                 const listsLoading = ref(false);
+                const syncing = ref(false);
                 const newUrl = ref('');
                 const newDomain = ref('');
                 const newRedirSource = ref('');
@@ -1991,6 +1995,21 @@
                     } catch (e) { showToast('Network error', 'error'); }
                 };
 
+                const forceSync = async () => {
+                    if (syncing.value) return;
+                    syncing.value = true;
+                    showToast('Syncing lists... Please wait.', 'info');
+                    try {
+                        const res = await apiFetch('/api/sync', { method: 'POST' });
+                        if (res.ok) {
+                            const d = await res.json();
+                            stats.value = d.stats;
+                            showToast('Sync complete! Cache refreshed across nodes.');
+                        } else showToast('Sync failed', 'error');
+                    } catch (e) { showToast('Network error', 'error'); }
+                    finally { syncing.value = false; }
+                };
+
                 // ===== INIT =====
                 onMounted(async () => {
                     try {
@@ -2015,7 +2034,7 @@
                     features, filters, allFeatures,
                     activeFeatureCount, activeFilterCount, activeCount, totalCount, totalCustomEntries,
                     register, login, logout, toggleFeature, saveUpstreams,
-                    switchToLists, loadLists, addDomain, addRedirect, removeEntry, addUrl, removeUrl,
+                    switchToLists, loadLists, addDomain, addRedirect, removeEntry, addUrl, removeUrl, forceSync,
                     fmt, timeAgo, showToast, theme, toggleTheme
                 };
             }
